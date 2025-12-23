@@ -1,0 +1,47 @@
+{
+  "name": "tribe-v2-ultimate",
+  "version": "2.0.0",
+  "private": true,
+  "description": "TRIBE v2 Ultimate - Infrastructure complète avec monitoring",
+  "author": "TRIBE Senegal",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:api": "turbo run dev --filter=tribe-api",
+    "dev:admin": "turbo run dev --filter=admin",
+    "dev:web": "turbo run dev --filter=web",
+    "build": "turbo run build",
+    "build:api": "turbo run build --filter=tribe-api",
+    "build:admin": "turbo run build --filter=admin",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:build": "docker compose build",
+    "db:migrate": "docker exec tribe-postgres psql -U postgres -d tribe -f /docker-entrypoint-initdb.d/001_initial_schema.sql",
+    "db:shell": "docker exec -it tribe-postgres psql -U postgres -d tribe",
+    "redis:cli": "docker exec -it tribe-redis redis-cli",
+    "install:all": "chmod +x install.sh && ./install.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.0",
+    "prettier": "^3.1.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

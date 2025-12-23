@@ -1,0 +1,209 @@
+networks:
+  tribe-network:
+    driver: bridge
+  traefik-public:
+    external: false
+
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  minio-data:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tribe-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: tribe_super_secret_2024
+      POSTGRES_DB: tribe
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - tribe-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: tribe-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - tribe-network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: tribe-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: tribe
+      RABBITMQ_DEFAULT_PASS: tribe_rabbit_2024
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - tribe-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: tribe-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: tribe_minio_access
+      MINIO_ROOT_PASSWORD: tribe_minio_secret_2024
+    volumes:
+      - minio-data:/data
+    networks:
+      - tribe-network
+
+  traefik:
+    image: traefik:v3.0
+    container_name: tribe-traefik
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - tribe-network
+      - traefik-public
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: tribe-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - tribe-network
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: tribe-grafana
+    restart: unless-stopped
+    ports:
+      - "3030:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: tribe_grafana_2024
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - tribe-network
+
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: tribe-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./infra/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    networks:
+      - tribe-network
+
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: tribe-promtail
+    restart: unless-stopped
+    volumes:
+      - ./infra/loki/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/log:/var/log:ro
+    command: -config.file=/etc/promtail/promtail-config.yml
+    networks:
+      - tribe-network
+
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: tribe-node-exporter
+    restart: unless-stopped
+    networks:
+      - tribe-network
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: tribe-cadvisor
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - tribe-network
+
+  admin:
+    build:
+      context: ./apps/admin
+      dockerfile: Dockerfile
+    container_name: tribe-admin
+    restart: unless-stopped
+    networks:
+      - tribe-network
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: tribe-web
+    restart: unless-stopped
+    networks:
+      - tribe-network
+
+  supabase-auth:
+    image: supabase/gotrue:v2.132.3
+    container_name: tribe-auth
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://postgres:tribe_super_secret_2024@tribe-postgres:5432/tribe
+      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_URI_ALLOW_LIST: http://localhost:3000,http://localhost:3001
+      GOTRUE_JWT_SECRET: tribe-jwt-secret-key-minimum-32-characters-long
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_DISABLE_SIGNUP: "false"
+    ports:
+      - "9999:9999"
+    networks:
+      - tribe-network

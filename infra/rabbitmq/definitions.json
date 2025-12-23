@@ -1,0 +1,220 @@
+{
+  "rabbit_version": "3.12.0",
+  "rabbitmq_version": "3.12.0",
+  "product_name": "RabbitMQ",
+  "product_version": "3.12.0",
+  "users": [
+    {
+      "name": "tribe",
+      "password_hash": "tribe_rabbit_2024",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"]
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "tribe"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "tribe",
+      "vhost": "tribe",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "topic_permissions": [],
+  "parameters": [],
+  "global_parameters": [
+    {
+      "name": "cluster_name",
+      "value": "tribe-cluster"
+    }
+  ],
+  "policies": [
+    {
+      "vhost": "tribe",
+      "name": "ha-all",
+      "pattern": ".*",
+      "apply-to": "all",
+      "definition": {
+        "ha-mode": "all",
+        "ha-sync-mode": "automatic"
+      },
+      "priority": 0
+    },
+    {
+      "vhost": "tribe",
+      "name": "ttl-1h",
+      "pattern": "^temp\\.",
+      "apply-to": "queues",
+      "definition": {
+        "message-ttl": 3600000,
+        "expires": 7200000
+      },
+      "priority": 1
+    }
+  ],
+  "queues": [
+    {
+      "name": "locations.pending",
+      "vhost": "tribe",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "dlx.locations",
+        "x-dead-letter-routing-key": "dead.locations"
+      }
+    },
+    {
+      "name": "locations.validated",
+      "vhost": "tribe",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "notifications.push",
+      "vhost": "tribe",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 86400000
+      }
+    },
+    {
+      "name": "notifications.email",
+      "vhost": "tribe",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "analytics.events",
+      "vhost": "tribe",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "rewards.process",
+      "vhost": "tribe",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "chat.messages",
+      "vhost": "tribe",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 604800000
+      }
+    },
+    {
+      "name": "dead.letters",
+      "vhost": "tribe",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "tribe.events",
+      "vhost": "tribe",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "tribe.commands",
+      "vhost": "tribe",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dlx.locations",
+      "vhost": "tribe",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "tribe.events",
+      "vhost": "tribe",
+      "destination": "locations.pending",
+      "destination_type": "queue",
+      "routing_key": "location.created",
+      "arguments": {}
+    },
+    {
+      "source": "tribe.events",
+      "vhost": "tribe",
+      "destination": "locations.validated",
+      "destination_type": "queue",
+      "routing_key": "location.validated",
+      "arguments": {}
+    },
+    {
+      "source": "tribe.events",
+      "vhost": "tribe",
+      "destination": "notifications.push",
+      "destination_type": "queue",
+      "routing_key": "notification.#",
+      "arguments": {}
+    },
+    {
+      "source": "tribe.events",
+      "vhost": "tribe",
+      "destination": "notifications.email",
+      "destination_type": "queue",
+      "routing_key": "email.#",
+      "arguments": {}
+    },
+    {
+      "source": "tribe.events",
+      "vhost": "tribe",
+      "destination": "analytics.events",
+      "destination_type": "queue",
+      "routing_key": "#",
+      "arguments": {}
+    },
+    {
+      "source": "tribe.events",
+      "vhost": "tribe",
+      "destination": "rewards.process",
+      "destination_type": "queue",
+      "routing_key": "reward.#",
+      "arguments": {}
+    },
+    {
+      "source": "tribe.commands",
+      "vhost": "tribe",
+      "destination": "chat.messages",
+      "destination_type": "queue",
+      "routing_key": "chat.send",
+      "arguments": {}
+    },
+    {
+      "source": "dlx.locations",
+      "vhost": "tribe",
+      "destination": "dead.letters",
+      "destination_type": "queue",
+      "routing_key": "dead.locations",
+      "arguments": {}
+    }
+  ]
+}

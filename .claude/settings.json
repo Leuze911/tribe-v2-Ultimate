@@ -1,0 +1,164 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "MultiEdit",
+      "Grep",
+      "Glob",
+      "LS",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(pnpm *)",
+      "Bash(yarn *)",
+      "Bash(node *)",
+      "Bash(git *)",
+      "Bash(docker *)",
+      "Bash(docker compose *)",
+      "Bash(docker-compose *)",
+      "Bash(cd *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(rm *)",
+      "Bash(cat *)",
+      "Bash(echo *)",
+      "Bash(printf *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(which *)",
+      "Bash(whereis *)",
+      "Bash(ls *)",
+      "Bash(pwd)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(wc *)",
+      "Bash(diff *)",
+      "Bash(expo *)",
+      "Bash(flutter *)",
+      "Bash(psql *)",
+      "Bash(redis-cli *)",
+      "Bash(sleep *)",
+      "Bash(touch *)",
+      "Bash(chmod *)",
+      "Bash(chown *)",
+      "Bash(tar *)",
+      "Bash(zip *)",
+      "Bash(unzip *)",
+      "Bash(env)",
+      "Bash(export *)",
+      "Bash(source *)",
+      "Bash(. *)",
+      "Bash(test *)",
+      "Bash([ *)",
+      "Bash([[ *)",
+      "Bash(true)",
+      "Bash(false)",
+      "Bash(tee *)",
+      "Bash(xargs *)",
+      "Bash(kill *)",
+      "Bash(pkill *)",
+      "Bash(pgrep *)",
+      "Bash(ps *)",
+      "Bash(lsof *)",
+      "Bash(netstat *)",
+      "Bash(ss *)",
+      "WebFetch"
+    ],
+    "deny": [
+      "Read(.env.production)",
+      "Read(**/.env.production)",
+      "Read(**/secrets/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Write(.env.production)",
+      "Write(**/.env.production)",
+      "Write(**/secrets/**)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(sudo *)",
+      "Bash(su *)",
+      "Bash(passwd *)",
+      "Bash(shutdown *)",
+      "Bash(reboot *)",
+      "Bash(init *)",
+      "Bash(mkfs *)",
+      "Bash(dd if=/dev/*)",
+      "Bash(:(){ :|:& };:)",
+      "Bash(chmod 777 /)",
+      "Bash(chown -R * /)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write(*.ts)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Write(*.tsx)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Write(*.js)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Write(*.jsx)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Write(*.json)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '🚀 TRIBE v2 - Claude Code session démarrée'"
+          }
+        ]
+      }
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "16384",
+    "BASH_DEFAULT_TIMEOUT_MS": "120000",
+    "NODE_ENV": "development"
+  }
+}

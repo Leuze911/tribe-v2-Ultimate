@@ -1,0 +1,506 @@
+-- TRIBE v2 - Initial Database Schema
+-- Supabase Migration: 001_initial_schema.sql
+-- Run with: supabase db push
+
+-- ============================================
+-- EXTENSIONS
+-- ============================================
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "postgis";  -- Pour les requêtes géospatiales
+
+-- ============================================
+-- TYPES ENUM
+-- ============================================
+CREATE TYPE user_role AS ENUM ('collector', 'validator', 'admin', 'super_admin');
+CREATE TYPE location_status AS ENUM ('pending', 'validated', 'rejected', 'duplicate');
+CREATE TYPE location_category AS ENUM (
+  'restaurant', 'hotel', 'shop', 'bank', 'pharmacy', 'hospital',
+  'school', 'mosque', 'church', 'gas_station', 'supermarket',
+  'market', 'government', 'transport', 'entertainment', 'other'
+);
+CREATE TYPE reward_type AS ENUM ('bonus', 'gift', 'achievement', 'level_up');
+CREATE TYPE notification_type AS ENUM ('info', 'success', 'warning', 'reward', 'system');
+
+-- ============================================
+-- PROFILES (Extension de auth.users)
+-- ============================================
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  full_name TEXT,
+  phone TEXT,
+  avatar_url TEXT,
+  role user_role DEFAULT 'collector',
+  
+  -- Gamification
+  points INTEGER DEFAULT 0 CHECK (points >= 0),
+  level INTEGER DEFAULT 1 CHECK (level >= 1),
+  total_locations INTEGER DEFAULT 0,
+  validated_locations INTEGER DEFAULT 0,
+  
+  -- Préférences
+  preferred_language TEXT DEFAULT 'fr' CHECK (preferred_language IN ('fr', 'en')),
+  notifications_enabled BOOLEAN DEFAULT true,
+  
+  -- Métadonnées
+  last_active_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index pour recherche rapide
+CREATE INDEX profiles_role_idx ON profiles(role);
+CREATE INDEX profiles_points_idx ON profiles(points DESC);
+
+-- ============================================
+-- LOCATIONS (Points d'Intérêt)
+-- ============================================
+CREATE TABLE locations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  collector_id UUID NOT NULL REFERENCES profiles(id),
+  
+  -- Informations de base
+  name TEXT NOT NULL,
+  name_local TEXT,  -- Nom en langue locale si différent
+  category location_category NOT NULL,
+  description TEXT,
+  
+  -- Géolocalisation
+  latitude DECIMAL(10, 8) NOT NULL CHECK (latitude >= -90 AND latitude <= 90),
+  longitude DECIMAL(11, 8) NOT NULL CHECK (longitude >= -180 AND longitude <= 180),
+  geom GEOMETRY(Point, 4326) GENERATED ALWAYS AS (ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)) STORED,
+  accuracy DECIMAL(6, 2),  -- Précision GPS en mètres
+  
+  -- Adresse
+  address TEXT,
+  neighborhood TEXT,
+  city TEXT DEFAULT 'Dakar',
+  region TEXT DEFAULT 'Dakar',
+  postal_code TEXT,
+  
+  -- Contact (optionnel)
+  phone TEXT,
+  email TEXT,
+  website TEXT,
+  
+  -- Médias
+  photos TEXT[] DEFAULT '{}',  -- URLs Supabase Storage
+  cover_photo_index INTEGER DEFAULT 0,
+  
+  -- Horaires (JSONB pour flexibilité)
+  opening_hours JSONB DEFAULT '{}'::jsonb,
+  -- Format: {"monday": {"open": "08:00", "close": "18:00"}, ...}
+  
+  -- Statut et validation
+  status location_status DEFAULT 'pending',
+  validated_by UUID REFERENCES profiles(id),
+  validated_at TIMESTAMPTZ,
+  rejection_reason TEXT,
+  
+  -- Points et récompenses
+  points_awarded INTEGER DEFAULT 0,
+  is_featured BOOLEAN DEFAULT false,
+  
+  -- Métadonnées
+  metadata JSONB DEFAULT '{}'::jsonb,
+  source TEXT DEFAULT 'app',  -- 'app', 'import', 'manual'
+  
+  -- Timestamps
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index géospatial pour recherches par proximité
+CREATE INDEX locations_geom_idx ON locations USING GIST (geom);
+CREATE INDEX locations_status_idx ON locations(status);
+CREATE INDEX locations_category_idx ON locations(category);
+CREATE INDEX locations_collector_idx ON locations(collector_id);
+CREATE INDEX locations_city_idx ON locations(city);
+CREATE INDEX locations_created_idx ON locations(created_at DESC);
+
+-- ============================================
+-- REWARDS (Récompenses)
+-- ============================================
+CREATE TABLE rewards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  name TEXT NOT NULL,
+  name_en TEXT,  -- Traduction anglaise
+  description TEXT,
+  description_en TEXT,
+  
+  type reward_type NOT NULL,
+  points_required INTEGER NOT NULL CHECK (points_required >= 0),
+  
+  image_url TEXT,
+  icon TEXT,  -- Nom de l'icône (lucide-react)
+  
+  -- Disponibilité
+  active BOOLEAN DEFAULT true,
+  quantity_available INTEGER,  -- NULL = illimité
+  quantity_claimed INTEGER DEFAULT 0,
+  
+  -- Période de validité
+  starts_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  
+  -- Conditions supplémentaires (JSONB)
+  conditions JSONB DEFAULT '{}'::jsonb,
+  -- Ex: {"min_level": 5, "category_required": "restaurant", "min_locations": 10}
+  
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX rewards_active_idx ON rewards(active) WHERE active = true;
+CREATE INDEX rewards_type_idx ON rewards(type);
+
+-- ============================================
+-- USER_REWARDS (Récompenses réclamées)
+-- ============================================
+CREATE TABLE user_rewards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  reward_id UUID NOT NULL REFERENCES rewards(id),
+  
+  points_spent INTEGER NOT NULL,
+  claimed_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  -- Pour les gifts physiques
+  delivery_status TEXT DEFAULT 'pending',
+  delivery_address TEXT,
+  tracking_number TEXT,
+  
+  UNIQUE(user_id, reward_id, claimed_at)  -- Un user peut claim plusieurs fois
+);
+
+CREATE INDEX user_rewards_user_idx ON user_rewards(user_id);
+CREATE INDEX user_rewards_reward_idx ON user_rewards(reward_id);
+
+-- ============================================
+-- LEVELS (Configuration des niveaux)
+-- ============================================
+CREATE TABLE levels (
+  level INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  name_en TEXT,
+  points_required INTEGER NOT NULL,
+  badge_url TEXT,
+  perks JSONB DEFAULT '[]'::jsonb,  -- Avantages du niveau
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insérer les niveaux par défaut
+INSERT INTO levels (level, name, name_en, points_required, badge_url) VALUES
+(1, 'Débutant', 'Beginner', 0, '/badges/level-1.svg'),
+(2, 'Explorateur', 'Explorer', 100, '/badges/level-2.svg'),
+(3, 'Cartographe', 'Cartographer', 300, '/badges/level-3.svg'),
+(4, 'Expert', 'Expert', 600, '/badges/level-4.svg'),
+(5, 'Maître', 'Master', 1000, '/badges/level-5.svg'),
+(6, 'Légende', 'Legend', 2000, '/badges/level-6.svg'),
+(7, 'Champion', 'Champion', 5000, '/badges/level-7.svg'),
+(8, 'Ambassadeur', 'Ambassador', 10000, '/badges/level-8.svg');
+
+-- ============================================
+-- NOTIFICATIONS
+-- ============================================
+CREATE TABLE notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  
+  type notification_type DEFAULT 'info',
+  title TEXT NOT NULL,
+  body TEXT,
+  
+  data JSONB DEFAULT '{}'::jsonb,  -- Données supplémentaires
+  
+  read BOOLEAN DEFAULT false,
+  read_at TIMESTAMPTZ,
+  
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX notifications_user_idx ON notifications(user_id);
+CREATE INDEX notifications_unread_idx ON notifications(user_id, read) WHERE read = false;
+
+-- ============================================
+-- CHAT_MESSAGES (Pour le chatbot IA)
+-- ============================================
+CREATE TABLE chat_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL,
+  
+  -- Métadonnées IA
+  model TEXT,
+  tokens_used INTEGER,
+  
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX chat_messages_user_idx ON chat_messages(user_id);
+CREATE INDEX chat_messages_created_idx ON chat_messages(created_at DESC);
+
+-- ============================================
+-- AUDIT LOG (Pour traçabilité)
+-- ============================================
+CREATE TABLE audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id),
+  action TEXT NOT NULL,
+  table_name TEXT,
+  record_id UUID,
+  old_data JSONB,
+  new_data JSONB,
+  ip_address INET,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX audit_logs_user_idx ON audit_logs(user_id);
+CREATE INDEX audit_logs_action_idx ON audit_logs(action);
+CREATE INDEX audit_logs_created_idx ON audit_logs(created_at DESC);
+
+-- ============================================
+-- FUNCTIONS & TRIGGERS
+-- ============================================
+
+-- Fonction pour mettre à jour updated_at automatiquement
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Triggers updated_at
+CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER locations_updated_at BEFORE UPDATE ON locations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER rewards_updated_at BEFORE UPDATE ON rewards
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Fonction pour créer automatiquement un profil après signup
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO profiles (id, email, full_name, avatar_url)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name'),
+    NEW.raw_user_meta_data->>'avatar_url'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger sur auth.users
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- Fonction pour mettre à jour les stats du collecteur après validation
+CREATE OR REPLACE FUNCTION update_collector_stats()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'validated' AND OLD.status = 'pending' THEN
+    UPDATE profiles 
+    SET 
+      points = points + NEW.points_awarded,
+      validated_locations = validated_locations + 1,
+      level = (
+        SELECT MAX(level) FROM levels WHERE points_required <= (
+          SELECT points + NEW.points_awarded FROM profiles WHERE id = NEW.collector_id
+        )
+      )
+    WHERE id = NEW.collector_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_location_validated
+  AFTER UPDATE ON locations
+  FOR EACH ROW EXECUTE FUNCTION update_collector_stats();
+
+-- ============================================
+-- ROW LEVEL SECURITY (RLS)
+-- ============================================
+
+-- Activer RLS sur toutes les tables
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rewards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_rewards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+
+-- PROFILES
+CREATE POLICY "Users can view all profiles"
+  ON profiles FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can update own profile"
+  ON profiles FOR UPDATE
+  USING (auth.uid() = id);
+
+-- LOCATIONS
+CREATE POLICY "Anyone can view validated locations"
+  ON locations FOR SELECT
+  USING (status = 'validated' OR collector_id = auth.uid());
+
+CREATE POLICY "Authenticated users can create locations"
+  ON locations FOR INSERT
+  WITH CHECK (auth.uid() = collector_id);
+
+CREATE POLICY "Collectors can update their pending locations"
+  ON locations FOR UPDATE
+  USING (collector_id = auth.uid() AND status = 'pending');
+
+CREATE POLICY "Validators can update any location"
+  ON locations FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() 
+      AND role IN ('validator', 'admin', 'super_admin')
+    )
+  );
+
+-- REWARDS
+CREATE POLICY "Anyone can view active rewards"
+  ON rewards FOR SELECT
+  USING (active = true);
+
+CREATE POLICY "Admins can manage rewards"
+  ON rewards FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() 
+      AND role IN ('admin', 'super_admin')
+    )
+  );
+
+-- USER_REWARDS
+CREATE POLICY "Users can view own rewards"
+  ON user_rewards FOR SELECT
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Users can claim rewards"
+  ON user_rewards FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+-- NOTIFICATIONS
+CREATE POLICY "Users can view own notifications"
+  ON notifications FOR SELECT
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Users can update own notifications"
+  ON notifications FOR UPDATE
+  USING (user_id = auth.uid());
+
+-- CHAT_MESSAGES
+CREATE POLICY "Users can view own chat messages"
+  ON chat_messages FOR SELECT
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Users can insert own chat messages"
+  ON chat_messages FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+-- ============================================
+-- STORAGE BUCKETS
+-- ============================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES 
+  ('avatars', 'avatars', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp']),
+  ('locations', 'locations', true, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp']),
+  ('rewards', 'rewards', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']);
+
+-- Storage policies
+CREATE POLICY "Anyone can view public files"
+  ON storage.objects FOR SELECT
+  USING (bucket_id IN ('avatars', 'locations', 'rewards'));
+
+CREATE POLICY "Authenticated users can upload avatars"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'avatars' 
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Authenticated users can upload location photos"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'locations' 
+    AND auth.role() = 'authenticated'
+  );
+
+CREATE POLICY "Admins can manage reward images"
+  ON storage.objects FOR ALL
+  USING (
+    bucket_id = 'rewards'
+    AND EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() 
+      AND role IN ('admin', 'super_admin')
+    )
+  );
+
+-- ============================================
+-- SEED DATA (Données de test)
+-- ============================================
+-- À exécuter séparément avec: supabase db seed
+
+-- Catégories de récompenses par défaut
+INSERT INTO rewards (name, name_en, description, type, points_required, icon, active) VALUES
+('Premier POI', 'First POI', 'Récompense pour votre premier point d''intérêt validé', 'achievement', 0, 'map-pin', true),
+('10 POI validés', '10 Validated POIs', 'Vous avez fait valider 10 points d''intérêt', 'achievement', 0, 'trophy', true),
+('Bonus Hebdo', 'Weekly Bonus', 'Bonus de 50 points pour activité régulière', 'bonus', 0, 'gift', true),
+('T-Shirt TRIBE', 'TRIBE T-Shirt', 'Un magnifique t-shirt aux couleurs de TRIBE', 'gift', 500, 'shirt', true),
+('Crédit Mobile 1000F', 'Mobile Credit 1000F', 'Crédit téléphonique de 1000 FCFA', 'gift', 200, 'smartphone', true);
+
+-- ============================================
+-- VIEWS (Vues utiles)
+-- ============================================
+
+-- Leaderboard
+CREATE VIEW leaderboard AS
+SELECT 
+  p.id,
+  p.full_name,
+  p.avatar_url,
+  p.points,
+  p.level,
+  p.validated_locations,
+  l.name as level_name,
+  l.badge_url,
+  RANK() OVER (ORDER BY p.points DESC) as rank
+FROM profiles p
+JOIN levels l ON p.level = l.level
+ORDER BY p.points DESC;
+
+-- Stats globales
+CREATE VIEW global_stats AS
+SELECT
+  (SELECT COUNT(*) FROM profiles) as total_users,
+  (SELECT COUNT(*) FROM locations WHERE status = 'validated') as total_locations,
+  (SELECT COUNT(*) FROM locations WHERE status = 'pending') as pending_locations,
+  (SELECT SUM(points) FROM profiles) as total_points_distributed,
+  (SELECT COUNT(DISTINCT collector_id) FROM locations WHERE created_at > NOW() - INTERVAL '7 days') as active_collectors_week;
+
+-- ============================================
+-- GRANTS (Permissions)
+-- ============================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated;
