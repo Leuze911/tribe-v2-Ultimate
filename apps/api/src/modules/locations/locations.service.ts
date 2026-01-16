@@ -65,7 +65,7 @@ export class LocationsService {
   }
 
   async findAll(query: QueryLocationDto): Promise<PaginatedResponse<Location>> {
-    const { status, category, city, collectorId, page = 1, limit = 20 } = query;
+    const { status, category, city, collectorId, search, page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
     // Try cache first
@@ -76,19 +76,29 @@ export class LocationsService {
       return cached;
     }
 
-    const where: Record<string, unknown> = {};
-    if (status) where.status = status;
-    if (category) where.category = category;
-    if (city) where.city = ILike(`%${city}%`);
-    if (collectorId) where.collectorId = collectorId;
+    // Use query builder for search support
+    const queryBuilder = this.locationRepository
+      .createQueryBuilder('location')
+      .leftJoinAndSelect('location.collector', 'collector')
+      .orderBy('location.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
 
-    const [data, total] = await this.locationRepository.findAndCount({
-      where,
-      relations: ['collector'],
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limit,
-    });
+    // Apply search
+    if (search) {
+      queryBuilder.andWhere(
+        '(location.name ILIKE :search OR location.description ILIKE :search OR location.address ILIKE :search)',
+        { search: `%${search}%` }
+      );
+    }
+
+    // Apply filters
+    if (status) queryBuilder.andWhere('location.status = :status', { status });
+    if (category) queryBuilder.andWhere('location.category = :category', { category });
+    if (city) queryBuilder.andWhere('location.city ILIKE :city', { city: `%${city}%` });
+    if (collectorId) queryBuilder.andWhere('location.collectorId = :collectorId', { collectorId });
+
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     const result: PaginatedResponse<Location> = {
       data,
