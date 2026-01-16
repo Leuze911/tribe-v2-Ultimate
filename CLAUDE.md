@@ -1,6 +1,6 @@
 # TRIBE v2 - Context Claude
 
-**Last Updated**: 2026-01-16 21:45 UTC
+**Last Updated**: 2026-01-16 22:15 UTC
 **Mission**: Développer l'app mobile React Native jusqu'à parité fonctionnelle complète
 
 ---
@@ -23,10 +23,11 @@
 - **Routing**: Expo Router (file-based)
 
 ### Progression Globale
-- **18/35 features** (51%)
+- **20/35 features** (57%)
 - **See**: FEATURES_GAP.md for detailed breakdown
 - **P2 REWARDS**: Complete
 - **P3 CHAT IA**: Complete
+- **P4 TESTS E2E**: Complete
 
 ---
 
@@ -135,9 +136,22 @@
 - Graceful fallback to demo responses when ANTHROPIC_API_KEY missing
 - Works with real Claude API when key is configured
 
-### 🔥 P4 - TESTS E2E
-**Status**: ZERO tests written
-**Critical**: All Maestro test flows missing
+### ✅ P4 - TESTS E2E (COMPLETE)
+**Implemented**:
+- 8 comprehensive Maestro E2E test flows
+- testIDs added to all key UI components
+- Test coverage: auth, POI, rewards, leaderboard, chat, navigation, profile
+- Test files:
+  - `auth-login.yaml` - Login, error handling, register navigation
+  - `poi-create.yaml` - POI creation, cancellation, minimal fields
+  - `chat-send.yaml` - Message sending, session history, new chat
+  - `rewards-view.yaml` - Badge viewing, pull to refresh
+  - `leaderboard-view.yaml` - Period filters, refresh
+  - `navigation.yaml` - Full menu navigation flow
+  - `profile-logout.yaml` - Profile viewing, logout
+  - `offline-sync.yaml` - Platform-specific offline tests
+- Configuration: `e2e/config.yaml`
+- Run: `maestro test apps/mobile/e2e/flows/`
 
 ---
 
