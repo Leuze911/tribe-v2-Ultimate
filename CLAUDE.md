@@ -1,6 +1,6 @@
 # TRIBE v2 - Context Claude
 
-**Last Updated**: 2026-01-16 22:15 UTC
+**Last Updated**: 2026-01-16 22:45 UTC
 **Mission**: Développer l'app mobile React Native jusqu'à parité fonctionnelle complète
 
 ---
@@ -23,8 +23,9 @@
 - **Routing**: Expo Router (file-based)
 
 ### Progression Globale
-- **20/35 features** (57%)
+- **23/35 features** (66%)
 - **See**: FEATURES_GAP.md for detailed breakdown
+- **P0 OFFLINE MODE**: Complete
 - **P2 REWARDS**: Complete
 - **P3 CHAT IA**: Complete
 - **P4 TESTS E2E**: Complete
@@ -82,9 +83,20 @@
    - Session history modal ✅
    - New chat/delete session ✅
 
-8. **My POIs**
+8. **My POIs** ✅ P0 COMPLETE
    - UI layout ✅
    - Empty state ✅
+   - Offline POIs display ✅
+   - Sync status per POI ✅
+   - Combined online/offline view ✅
+
+9. **Offline Mode** ✅ P0 COMPLETE
+   - SQLite database (expo-sqlite) ✅
+   - Offline POI creation ✅
+   - Sync queue ✅
+   - Background sync (expo-background-fetch) ✅
+   - Network monitoring ✅
+   - Offline indicator UI ✅
 
 ### Services & Infrastructure
 - `src/services/api.ts` - Axios with JWT interceptors ✅
@@ -98,15 +110,18 @@
 
 ## ❌ Ce Qui MANQUE (Priorité)
 
-### 🔥 P0 - CRITICAL: Mode Offline
-**Status**: Hook exists (`useOffline.ts`) but NOT implemented
-**Need**:
-- expo-sqlite setup
-- Local database schema
-- Sync queue
-- Background sync with expo-task-manager
-- Conflict resolution
-- Offline indicator UI
+### ✅ P0 - OFFLINE MODE (COMPLETE)
+**Implemented**:
+- SQLite database with expo-sqlite for offline storage
+- POIs table with sync status (pending/syncing/synced/error)
+- Sync queue table for retry logic
+- Background sync with expo-background-fetch (15 min interval)
+- Network monitoring with @react-native-community/netinfo
+- Auto-sync when coming back online
+- OfflineIndicator component with sync status
+- My POIs screen shows offline POIs with status
+- Offline banner on map screen
+- Pull to refresh triggers sync
 
 ### 🔥 P1 - CORE: POI Features Complete
 **Missing**:
