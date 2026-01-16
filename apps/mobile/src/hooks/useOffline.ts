@@ -31,12 +31,21 @@ export function useOffline() {
   useEffect(() => {
     const unsubscribe = syncService.onSyncStatusChange((status) => {
       setSyncStatus(status);
+      // Reload data when sync status changes
+      if (status === 'idle') {
+        loadOfflinePOIs();
+        loadSyncStats();
+      }
     });
 
     // Update online status periodically
     const interval = setInterval(() => {
       setIsOnline(syncService.isDeviceOnline());
     }, 1000);
+
+    // Initial data load
+    loadOfflinePOIs();
+    loadSyncStats();
 
     return () => {
       unsubscribe();

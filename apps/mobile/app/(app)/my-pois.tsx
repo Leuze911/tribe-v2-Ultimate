@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,26 +6,57 @@ import { router } from 'expo-router';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/utils/theme';
 import { poisService } from '../../src/services/pois';
 import { useOffline } from '../../src/hooks/useOffline';
+import { OfflineIndicator } from '../../src/components/OfflineIndicator';
 import type { POI } from '../../src/types';
+import { OfflinePOI } from '../../src/services/database';
+
+interface DisplayPOI {
+  id: string;
+  name: string;
+  category?: { name: string };
+  categoryId?: string;
+  status?: string;
+  isOffline?: boolean;
+  syncStatus?: OfflinePOI['syncStatus'];
+  syncError?: string;
+}
 
 export default function MyPOIsScreen() {
-  const [pois, setPois] = useState<POI[]>([]);
+  const [remotePois, setRemotePois] = useState<POI[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const { offlinePOIs, isOnline } = useOffline();
+  const {
+    offlinePOIs,
+    isOnline,
+    loadOfflinePOIs,
+    loadSyncStats,
+    triggerSync,
+    syncStats,
+  } = useOffline();
 
   useEffect(() => {
-    loadPOIs();
+    loadAllPOIs();
   }, []);
 
-  const loadPOIs = async () => {
+  // Reload offline POIs when they change
+  useEffect(() => {
+    loadOfflinePOIs();
+  }, []);
+
+  const loadAllPOIs = async () => {
     try {
+      // Load offline POIs first
+      await loadOfflinePOIs();
+      await loadSyncStats();
+
+      // Try to load remote POIs if online
       if (isOnline) {
-        const data = await poisService.getMyPOIs();
-        setPois(data);
-      } else {
-        // Show offline POIs
-        setPois(offlinePOIs as any);
+        try {
+          const data = await poisService.getMyPOIs();
+          setRemotePois(data);
+        } catch (error) {
+          console.error('Failed to load remote POIs:', error);
+        }
       }
     } catch (error) {
       console.error('Failed to load POIs:', error);
@@ -35,9 +66,64 @@ export default function MyPOIsScreen() {
     }
   };
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    loadPOIs();
+
+    // Trigger sync if online
+    if (isOnline) {
+      try {
+        await triggerSync();
+      } catch (error) {
+        console.error('Sync failed:', error);
+      }
+    }
+
+    await loadAllPOIs();
+  }, [isOnline, triggerSync]);
+
+  // Combine remote and pending offline POIs
+  const combinedPOIs: DisplayPOI[] = [
+    // Pending offline POIs first (not yet synced)
+    ...offlinePOIs
+      .filter(poi => poi.syncStatus !== 'synced')
+      .map(poi => ({
+        id: poi.id,
+        name: poi.name,
+        categoryId: poi.categoryId,
+        status: 'pending',
+        isOffline: true,
+        syncStatus: poi.syncStatus,
+        syncError: poi.syncError,
+      })),
+    // Remote POIs
+    ...remotePois.map(poi => ({
+      id: poi.id,
+      name: poi.name,
+      category: poi.category,
+      categoryId: poi.category?.id,
+      status: 'validated', // Remote POIs are validated
+      isOffline: false,
+    })),
+  ];
+
+  const getSyncStatusDisplay = (poi: DisplayPOI) => {
+    if (!poi.isOffline) {
+      if (poi.status === 'validated') return { text: 'Valide', icon: 'checkmark-circle', color: colors.primary[500] };
+      if (poi.status === 'pending') return { text: 'En attente', icon: 'time', color: colors.yellow[500] };
+      if (poi.status === 'rejected') return { text: 'Rejete', icon: 'close-circle', color: colors.red[500] };
+      return { text: '', icon: 'ellipse', color: colors.gray[400] };
+    }
+
+    switch (poi.syncStatus) {
+      case 'pending':
+        return { text: 'A synchroniser', icon: 'cloud-upload-outline', color: colors.primary[500] };
+      case 'syncing':
+        return { text: 'Synchronisation...', icon: 'sync', color: colors.primary[500] };
+      case 'error':
+        return { text: poi.syncError || 'Erreur', icon: 'alert-circle', color: colors.red[500] };
+      default:
+        return { text: '', icon: 'ellipse', color: colors.gray[400] };
+    }
   };
 
   if (isLoading) {
@@ -66,36 +152,66 @@ export default function MyPOIsScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mes POI</Text>
         <View style={styles.countBadge}>
-          <Text style={styles.countText}>{pois.length}</Text>
+          <Text style={styles.countText}>{combinedPOIs.length}</Text>
         </View>
       </View>
 
+      {/* Offline/Sync Status */}
+      <OfflineIndicator showSyncButton={true} />
+
       <FlatList
-        data={pois}
+        data={combinedPOIs}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.poiCard}
-            onPress={() => {
-              // Navigate to POI details or edit
-              // router.push(`/poi/${item.id}`);
-            }}
-          >
-            <View style={styles.poiIcon}>
-              <Ionicons name="location" size={24} color={colors.primary[500]} />
-            </View>
-            <View style={styles.poiInfo}>
-              <Text style={styles.poiName}>{item.name}</Text>
-              <Text style={styles.poiCategory}>{item.category?.name || item.categoryId}</Text>
-              <Text style={styles.poiStatus}>
-                {item.status === 'validated' && '✅ Validé'}
-                {item.status === 'pending' && '⏳ En attente'}
-                {item.status === 'rejected' && '❌ Rejeté'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => {
+          const statusDisplay = getSyncStatusDisplay(item);
+
+          return (
+            <TouchableOpacity
+              style={styles.poiCard}
+              onPress={() => {
+                // Navigate to POI details or edit
+                // router.push(`/poi/${item.id}`);
+              }}
+            >
+              <View style={[
+                styles.poiIcon,
+                item.isOffline && styles.poiIconOffline,
+              ]}>
+                <Ionicons
+                  name={item.isOffline ? 'cloud-offline' : 'location'}
+                  size={24}
+                  color={item.isOffline ? colors.gray[500] : colors.primary[500]}
+                />
+              </View>
+              <View style={styles.poiInfo}>
+                <View style={styles.poiNameRow}>
+                  <Text style={styles.poiName}>{item.name}</Text>
+                  {item.isOffline && (
+                    <View style={styles.offlineBadge}>
+                      <Text style={styles.offlineBadgeText}>Hors ligne</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.poiCategory}>
+                  {item.category?.name || item.categoryId || 'Non catégorisé'}
+                </Text>
+                {statusDisplay.text && (
+                  <View style={styles.statusRow}>
+                    <Ionicons
+                      name={statusDisplay.icon as any}
+                      size={14}
+                      color={statusDisplay.color}
+                    />
+                    <Text style={[styles.poiStatus, { color: statusDisplay.color }]}>
+                      {statusDisplay.text}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
+            </TouchableOpacity>
+          );
+        }}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -158,7 +274,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[100],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full
+    borderRadius: borderRadius.full,
+    minWidth: 32,
+    alignItems: 'center',
   },
   countText: {
     color: colors.primary[600],
@@ -175,11 +293,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    ...Platform.select({
-      ios: shadows.md,
-      android: { elevation: 2 },
-      web: { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
-    }),
+    ...(Platform.OS === 'ios' ? shadows.md : {}),
+    elevation: 2,
   },
   poiIcon: {
     width: 48,
@@ -190,23 +305,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: spacing.md,
   },
+  poiIconOffline: {
+    backgroundColor: colors.gray[100],
+  },
   poiInfo: {
     flex: 1,
+  },
+  poiNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   poiName: {
     fontSize: fontSize.base,
     fontWeight: '600',
-    color: colors.gray[900]
+    color: colors.gray[900],
+    flex: 1,
+  },
+  offlineBadge: {
+    backgroundColor: colors.gray[200],
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  offlineBadgeText: {
+    fontSize: fontSize.xs,
+    color: colors.gray[600],
   },
   poiCategory: {
     fontSize: fontSize.sm,
     color: colors.gray[500],
     marginTop: spacing.xs,
   },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
   poiStatus: {
     fontSize: fontSize.xs,
-    color: colors.gray[600],
-    marginTop: spacing.xs,
   },
   loadingContainer: {
     flex: 1,
