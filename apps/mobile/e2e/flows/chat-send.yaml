@@ -1,0 +1,53 @@
+# TRIBE v2 - E2E Test: Chat IA
+# Tests sending a message to Claude and receiving a response
+
+appId: host.exp.Exponent
+---
+
+# Prerequisite: User must be logged in
+- launchApp
+- assertVisible: "Rechercher un lieu..."
+
+# Navigate to chat
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Chat IA"
+
+# Wait for chat screen
+- assertVisible:
+    text: "Assistant TRIBE"
+    timeout: 3000
+
+# Verify welcome message
+- assertVisible: "Bonjour ! Je suis l'assistant TRIBE"
+
+# Test: Send a message
+- tapOn: "Écrivez votre message..."
+- inputText: "Comment ajouter un POI ?"
+
+# Send message
+- tapOn:
+    id: "send-button"
+
+# Wait for response (Claude should respond)
+- assertVisible:
+    text: "Réflexion en cours..."
+    timeout: 2000
+    optional: true
+
+# Wait for actual response (this might take a few seconds)
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# Verify a response was received (check for common words)
+# The exact response may vary but should mention POI creation
+- assertVisible:
+    text: "POI"
+    timeout: 5000
+
+# Go back
+- tapOn:
+    id: "back-button"
+
+- assertVisible: "Rechercher un lieu..."

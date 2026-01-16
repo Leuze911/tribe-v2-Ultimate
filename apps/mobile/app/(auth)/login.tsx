@@ -10,11 +10,13 @@ import {
   ScrollView,
   Alert,
   StyleSheet,
+  Image,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/auth';
+import { useGoogleAuth } from '../../src/hooks/useGoogleAuth';
 import { colors, spacing, borderRadius, fontSize } from '../../src/utils/theme';
 
 export default function LoginScreen() {
@@ -22,6 +24,20 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuthStore();
+  const { signInWithGoogle, isLoading: isGoogleLoading, isReady: isGoogleReady } = useGoogleAuth();
+
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signInWithGoogle();
+      if (result.type === 'success') {
+        router.replace('/(app)/map');
+      } else if (result.type === 'error') {
+        Alert.alert('Erreur', result.error || 'Erreur de connexion Google');
+      }
+    } catch (err) {
+      Alert.alert('Erreur', 'Erreur de connexion Google');
+    }
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -55,6 +71,29 @@ export default function LoginScreen() {
               </View>
               <Text style={styles.title}>Tribe</Text>
               <Text style={styles.subtitle}>Découvrez le monde autour de vous</Text>
+            </View>
+
+            {/* Google Sign In */}
+            <TouchableOpacity
+              style={[styles.googleButton, (!isGoogleReady || isGoogleLoading) && styles.buttonDisabled]}
+              onPress={handleGoogleLogin}
+              disabled={!isGoogleReady || isGoogleLoading || isLoading}
+            >
+              {isGoogleLoading ? (
+                <ActivityIndicator color={colors.gray[700]} />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={20} color="#4285F4" />
+                  <Text style={styles.googleButtonText}>Continuer avec Google</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Separator */}
+            <View style={styles.separator}>
+              <View style={styles.separatorLine} />
+              <Text style={styles.separatorText}>ou</Text>
+              <View style={styles.separatorLine} />
             </View>
 
             {/* Form */}
@@ -218,5 +257,37 @@ const styles = StyleSheet.create({
   footerLink: {
     color: colors.primary[600],
     fontWeight: '600',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.gray[300],
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.xl,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  googleButtonText: {
+    color: colors.gray[700],
+    fontWeight: '600',
+    fontSize: fontSize.base,
+  },
+  separator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  separatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.gray[300],
+  },
+  separatorText: {
+    color: colors.gray[500],
+    paddingHorizontal: spacing.lg,
+    fontSize: fontSize.sm,
   },
 });

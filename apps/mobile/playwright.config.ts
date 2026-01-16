@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: 'html',
   timeout: 60000,
   use: {
-    baseURL: 'http://localhost:8095',
+    baseURL: 'http://localhost:8081',
     trace: 'on-first-retry',
     screenshot: 'on',
     video: 'on',

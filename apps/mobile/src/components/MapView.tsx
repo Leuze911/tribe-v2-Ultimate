@@ -1,11 +1,22 @@
 import { useRef, useEffect, useState } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
-import MapLibreGL from '@maplibre/maplibre-react-native';
+import { View, StyleSheet, Platform, Text } from 'react-native';
+import Constants from 'expo-constants';
 import { useMapStore } from '../store/map';
 import type { POI, Location } from '../types';
 
-// Initialize MapLibre
-MapLibreGL.setAccessToken(null);
+// Check if running in Expo Go (MapLibre needs native build)
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Only import MapLibre if not in Expo Go
+let MapLibreGL: any = null;
+if (!isExpoGo) {
+  try {
+    MapLibreGL = require('@maplibre/maplibre-react-native').default;
+    MapLibreGL.setAccessToken(null);
+  } catch (e) {
+    console.log('MapLibre not available');
+  }
+}
 
 const MAPTILER_KEY = 'get_your_own_key'; // Replace with your MapTiler key
 const MAP_STYLE = `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
@@ -21,8 +32,8 @@ interface MapViewProps {
 }
 
 export function MapView({ pois, onPOIPress, onMapPress, showUserLocation = true }: MapViewProps) {
-  const mapRef = useRef<MapLibreGL.MapView>(null);
-  const cameraRef = useRef<MapLibreGL.Camera>(null);
+  const mapRef = useRef<any>(null);
+  const cameraRef = useRef<any>(null);
   const { region, userLocation, isAddingPOI, newPOILocation, setNewPOILocation, setRegion } =
     useMapStore();
 
@@ -54,6 +65,27 @@ export function MapView({ pois, onPOIPress, onMapPress, showUserLocation = true 
       centerOnLocation(userLocation);
     }
   }, [userLocation]);
+
+  // Fallback for Expo Go - show placeholder map
+  if (isExpoGo || !MapLibreGL) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.fallbackMap}>
+          <View style={styles.fallbackContent}>
+            <Text style={styles.fallbackEmoji}>🗺️</Text>
+            <Text style={styles.fallbackTitle}>Mode Expo Go</Text>
+            <Text style={styles.fallbackText}>
+              MapLibre nécessite un build natif.{'\n'}
+              L'auth Google et les autres fonctions sont disponibles.
+            </Text>
+            <Text style={styles.fallbackPois}>
+              {pois.length} POI(s) chargé(s)
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -116,6 +148,38 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  fallbackMap: {
+    flex: 1,
+    backgroundColor: '#E8F4E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fallbackContent: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  fallbackEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  fallbackTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2D5A27',
+    marginBottom: 8,
+  },
+  fallbackText: {
+    fontSize: 14,
+    color: '#4A7C43',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  fallbackPois: {
+    marginTop: 16,
+    fontSize: 12,
+    color: '#6B9463',
+    fontWeight: '500',
   },
   marker: {
     width: 30,

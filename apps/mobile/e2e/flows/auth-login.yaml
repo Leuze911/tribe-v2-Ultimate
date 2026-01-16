@@ -1,0 +1,29 @@
+# TRIBE v2 - E2E Test: Login Flow
+# Tests basic email/password login functionality
+
+appId: host.exp.Exponent  # Expo Go app ID
+---
+
+# Test: Successful login with valid credentials
+- launchApp
+- assertVisible: "Se connecter"  # Login header text
+- assertVisible: "Tribe"  # App name/logo
+
+# Fill in email field
+- tapOn: "votre@email.com"  # Email placeholder
+- inputText: "test@tribe.sn"
+
+# Fill in password field
+- tapOn: "••••••••"  # Password placeholder
+- inputText: "password123"
+
+# Submit login
+- tapOn: "Se connecter"  # Login button
+
+# Wait for navigation to map screen
+- assertVisible:
+    text: "Rechercher un lieu..."
+    timeout: 5000
+
+# Verify we're on the map screen
+- assertVisible: "Ma position"  # Location button testID

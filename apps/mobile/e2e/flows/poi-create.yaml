@@ -1,0 +1,59 @@
+# TRIBE v2 - E2E Test: Create POI Flow
+# Tests creating a new Point of Interest
+
+appId: host.exp.Exponent
+---
+
+# Prerequisite: User must be logged in
+- launchApp
+- assertVisible: "Rechercher un lieu..."  # Map screen
+
+# Test: Create a new POI
+- tapOn:
+    id: "add-poi-button"  # FAB button to add POI
+
+# Wait for adding mode banner
+- assertVisible:
+    text: "Touchez la carte pour placer le POI"
+    timeout: 2000
+
+# Tap on the map center to place POI
+- tapOn:
+    point: "50%,50%"
+
+# Confirm location
+- tapOn: "Confirmer"
+
+# Wait for bottom sheet form
+- assertVisible:
+    text: "Nouveau POI"
+    timeout: 2000
+
+# Fill in POI name
+- tapOn: "Ex: Cafe de la Paix"
+- inputText: "Cafe Test E2E"
+
+# Fill in description (optional but let's test it)
+- tapOn: "Decrivez ce lieu..."
+- inputText: "Cafe de test automatise"
+
+# Select category (restaurant by default, keep it)
+# Category should already be selected
+
+# Submit POI
+- tapOn: "Creer le POI"
+
+# Wait for success message
+- assertVisible:
+    text: "Succès"
+    timeout: 5000
+
+- assertVisible:
+    text: "POI \"Cafe Test E2E\" créé avec succès!"
+    timeout: 2000
+
+# Dismiss alert
+- tapOn: "OK"
+
+# Verify we're back on the map
+- assertVisible: "Rechercher un lieu..."

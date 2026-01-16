@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, Dimensions, StyleSheet } from 'react-native';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import type { POI } from '../types';
@@ -43,36 +43,34 @@ export const POIBottomSheet = forwardRef<BottomSheet, POIBottomSheetProps>(
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
-              className="h-48"
+              style={styles.imageScroll}
             >
               {poi.images.map((image, index) => (
                 <Image
                   key={index}
                   source={{ uri: image }}
-                  className="h-48"
-                  style={{ width: width - 32 }}
+                  style={[styles.image, { width: width - 32 }]}
                   resizeMode="cover"
                 />
               ))}
             </ScrollView>
           )}
 
-          <View className="px-6 pt-4">
+          <View style={styles.content}>
             {/* Header */}
-            <View className="flex-row items-start justify-between">
-              <View className="flex-1">
-                <Text className="text-2xl font-bold text-gray-900">{poi.name}</Text>
-                <View className="flex-row items-center mt-1">
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <Text style={styles.title}>{poi.name}</Text>
+                <View style={styles.metaRow}>
                   <View
-                    className="px-2 py-1 rounded-full mr-2"
-                    style={{ backgroundColor: poi.category.color + '20' }}
+                    style={[styles.categoryBadge, { backgroundColor: poi.category.color + '20' }]}
                   >
-                    <Text style={{ color: poi.category.color }} className="text-xs font-medium">
+                    <Text style={[styles.categoryText, { color: poi.category.color }]}>
                       {poi.category.name}
                     </Text>
                   </View>
                   {poi.distance && (
-                    <Text className="text-gray-500 text-sm">
+                    <Text style={styles.distanceText}>
                       {poi.distance < 1000
                         ? `${Math.round(poi.distance)}m`
                         : `${(poi.distance / 1000).toFixed(1)}km`}
@@ -83,36 +81,36 @@ export const POIBottomSheet = forwardRef<BottomSheet, POIBottomSheetProps>(
 
               {/* Rating */}
               {poi.rating && (
-                <View className="flex-row items-center bg-yellow-100 px-3 py-1.5 rounded-full">
+                <View style={styles.ratingBadge}>
                   <Ionicons name="star" size={16} color="#F59E0B" />
-                  <Text className="ml-1 font-bold text-yellow-700">
+                  <Text style={styles.ratingValue}>
                     {poi.rating.toFixed(1)}
                   </Text>
-                  <Text className="text-yellow-600 text-xs ml-1">({poi.totalRatings})</Text>
+                  <Text style={styles.ratingCount}>({poi.totalRatings})</Text>
                 </View>
               )}
             </View>
 
             {/* Description */}
             {poi.description && (
-              <Text className="text-gray-600 mt-4 leading-6">{poi.description}</Text>
+              <Text style={styles.description}>{poi.description}</Text>
             )}
 
             {/* Author */}
-            <View className="flex-row items-center mt-6 p-3 bg-gray-50 rounded-xl">
-              <View className="w-10 h-10 rounded-full bg-primary-100 items-center justify-center">
+            <View style={styles.authorContainer}>
+              <View style={styles.authorAvatar}>
                 {poi.author.avatar ? (
                   <Image
                     source={{ uri: poi.author.avatar }}
-                    className="w-10 h-10 rounded-full"
+                    style={styles.authorAvatarImage}
                   />
                 ) : (
                   <Ionicons name="person" size={20} color="#4F46E5" />
                 )}
               </View>
-              <View className="ml-3">
-                <Text className="font-medium text-gray-900">{poi.author.username}</Text>
-                <Text className="text-gray-500 text-xs">
+              <View style={styles.authorInfo}>
+                <Text style={styles.authorName}>{poi.author.username}</Text>
+                <Text style={styles.authorDate}>
                   Ajouté le{' '}
                   {new Date(poi.createdAt).toLocaleDateString('fr-FR', {
                     day: 'numeric',
@@ -124,18 +122,18 @@ export const POIBottomSheet = forwardRef<BottomSheet, POIBottomSheetProps>(
             </View>
 
             {/* Actions */}
-            <View className="flex-row mt-6 gap-3">
+            <View style={styles.actionsRow}>
               <TouchableOpacity
-                className="flex-1 flex-row items-center justify-center bg-primary-600 py-4 rounded-xl"
+                style={styles.navigateButton}
                 onPress={() => onNavigate?.(poi)}
               >
                 <Ionicons name="navigate" size={20} color="#ffffff" />
-                <Text className="ml-2 text-white font-semibold">Y aller</Text>
+                <Text style={styles.navigateText}>Y aller</Text>
               </TouchableOpacity>
-              <TouchableOpacity className="w-14 h-14 items-center justify-center bg-gray-100 rounded-xl">
+              <TouchableOpacity style={styles.iconButton}>
                 <Ionicons name="share-outline" size={24} color="#4B5563" />
               </TouchableOpacity>
-              <TouchableOpacity className="w-14 h-14 items-center justify-center bg-gray-100 rounded-xl">
+              <TouchableOpacity style={styles.iconButton}>
                 <Ionicons name="bookmark-outline" size={24} color="#4B5563" />
               </TouchableOpacity>
             </View>
@@ -145,6 +143,133 @@ export const POIBottomSheet = forwardRef<BottomSheet, POIBottomSheetProps>(
     );
   }
 );
+
+const styles = StyleSheet.create({
+  imageScroll: {
+    height: 192,
+  },
+  image: {
+    height: 192,
+  },
+  content: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  categoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 9999,
+    marginRight: 8,
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  distanceText: {
+    color: '#6B7280',
+    fontSize: 14,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 9999,
+  },
+  ratingValue: {
+    marginLeft: 4,
+    fontWeight: 'bold',
+    color: '#B45309',
+  },
+  ratingCount: {
+    color: '#D97706',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  description: {
+    color: '#4B5563',
+    marginTop: 16,
+    lineHeight: 24,
+  },
+  authorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+  },
+  authorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authorAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  authorInfo: {
+    marginLeft: 12,
+  },
+  authorName: {
+    fontWeight: '500',
+    color: '#111827',
+  },
+  authorDate: {
+    color: '#6B7280',
+    fontSize: 12,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    marginTop: 24,
+    gap: 12,
+  },
+  navigateButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2f9e44',
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  navigateText: {
+    marginLeft: 8,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  iconButton: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+  },
+});
 
 POIBottomSheet.displayName = 'POIBottomSheet';
 

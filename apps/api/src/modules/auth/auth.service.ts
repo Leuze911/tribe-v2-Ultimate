@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { Profile } from '../users/entities/profile.entity';
 import { RegisterDto, LoginDto, AuthResponseDto, UserResponseDto } from './dto';
+import { GoogleProfile } from './strategies/google.strategy';
 
 @Injectable()
 export class AuthService {
@@ -117,6 +118,72 @@ export class AuthService {
     }
 
     return this.mapToUserResponse(user);
+  }
+
+  async validateGoogleToken(idToken: string): Promise<AuthResponseDto> {
+    try {
+      // Decode and verify the Google ID token
+      // In production, you should verify the token signature with Google's public keys
+      const tokenPayload = JSON.parse(
+        Buffer.from(idToken.split('.')[1], 'base64').toString()
+      );
+
+      const googleProfile: GoogleProfile = {
+        id: tokenPayload.sub,
+        email: tokenPayload.email,
+        fullName: tokenPayload.name || `${tokenPayload.given_name} ${tokenPayload.family_name}`.trim(),
+        avatarUrl: tokenPayload.picture,
+        verified: tokenPayload.email_verified,
+      };
+
+      return this.validateGoogleUser(googleProfile);
+    } catch (error) {
+      this.logger.error('Invalid Google token', error);
+      throw new UnauthorizedException('Invalid Google token');
+    }
+  }
+
+  async validateGoogleUser(googleProfile: GoogleProfile): Promise<AuthResponseDto> {
+    const { email, fullName, avatarUrl } = googleProfile;
+
+    // Check if user already exists
+    let user = await this.profileRepository.findOne({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (!user) {
+      // Create new user for Google login
+      user = this.profileRepository.create({
+        email: email.toLowerCase(),
+        passwordHash: '', // Empty for Google accounts
+        fullName: fullName || null,
+        avatarUrl: avatarUrl || null,
+        role: 'collector',
+        points: 0,
+        level: 1,
+        isActive: true,
+      });
+
+      await this.profileRepository.save(user);
+      this.logger.log(`New Google user registered: ${user.email}`);
+    } else {
+      // Update avatar if not set
+      if (avatarUrl && !user.avatarUrl) {
+        user.avatarUrl = avatarUrl;
+        await this.profileRepository.save(user);
+      }
+      this.logger.log(`Google user logged in: ${user.email}`);
+    }
+
+    // Generate JWT token
+    const token = this.generateToken(user);
+
+    return {
+      accessToken: token,
+      tokenType: 'Bearer',
+      expiresIn: this.jwtExpiresIn,
+      user: this.mapToUserResponse(user),
+    };
   }
 
   private generateToken(user: Profile): string {

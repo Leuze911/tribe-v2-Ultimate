@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
@@ -139,10 +140,10 @@ export const AddPOIBottomSheet = forwardRef<BottomSheet, AddPOIBottomSheetProps>
         handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40 }}
       >
         <BottomSheetScrollView contentContainerStyle={{ paddingBottom: 32 }}>
-          <View className="px-6">
+          <View style={styles.container}>
             {/* Header */}
-            <View className="flex-row items-center justify-between mb-6">
-              <Text className="text-2xl font-bold text-gray-900">Nouveau POI</Text>
+            <View style={styles.header}>
+              <Text style={styles.title}>Nouveau POI</Text>
               <TouchableOpacity onPress={onClose}>
                 <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
@@ -150,21 +151,21 @@ export const AddPOIBottomSheet = forwardRef<BottomSheet, AddPOIBottomSheetProps>
 
             {/* Location Info */}
             {location && (
-              <View className="flex-row items-center bg-gray-50 p-3 rounded-xl mb-6">
+              <View style={styles.locationInfo}>
                 <Ionicons name="location" size={20} color="#4F46E5" />
-                <Text className="ml-2 text-gray-600 text-sm">
+                <Text style={styles.locationText}>
                   {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                 </Text>
               </View>
             )}
 
             {/* Name */}
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-gray-700 mb-2">
-                Nom du lieu <Text className="text-red-500">*</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Nom du lieu <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
-                className="bg-gray-100 rounded-xl px-4 py-4 text-gray-900"
+                style={styles.input}
                 placeholder="Ex: Café de la Paix"
                 placeholderTextColor="#9CA3AF"
                 value={name}
@@ -173,10 +174,10 @@ export const AddPOIBottomSheet = forwardRef<BottomSheet, AddPOIBottomSheetProps>
             </View>
 
             {/* Description */}
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-gray-700 mb-2">Description</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description</Text>
               <TextInput
-                className="bg-gray-100 rounded-xl px-4 py-4 text-gray-900"
+                style={[styles.input, styles.textArea]}
                 placeholder="Décrivez ce lieu..."
                 placeholderTextColor="#9CA3AF"
                 value={description}
@@ -184,33 +185,34 @@ export const AddPOIBottomSheet = forwardRef<BottomSheet, AddPOIBottomSheetProps>
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
-                style={{ minHeight: 80 }}
               />
             </View>
 
             {/* Category */}
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-gray-700 mb-2">
-                Catégorie <Text className="text-red-500">*</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Catégorie <Text style={styles.required}>*</Text>
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className="flex-row gap-2">
+                <View style={styles.categoryRow}>
                   {categories?.map((category) => (
                     <TouchableOpacity
                       key={category.id}
-                      className={`px-4 py-3 rounded-xl border-2 ${
+                      style={[
+                        styles.categoryChip,
                         selectedCategory?.id === category.id
-                          ? 'border-primary-600 bg-primary-50'
-                          : 'border-gray-200 bg-white'
-                      }`}
+                          ? styles.categoryChipSelected
+                          : styles.categoryChipUnselected,
+                      ]}
                       onPress={() => setSelectedCategory(category)}
                     >
                       <Text
-                        className={`font-medium ${
+                        style={[
+                          styles.categoryChipText,
                           selectedCategory?.id === category.id
-                            ? 'text-primary-600'
-                            : 'text-gray-700'
-                        }`}
+                            ? styles.categoryChipTextSelected
+                            : styles.categoryChipTextUnselected,
+                        ]}
                       >
                         {category.name}
                       </Text>
@@ -221,36 +223,26 @@ export const AddPOIBottomSheet = forwardRef<BottomSheet, AddPOIBottomSheetProps>
             </View>
 
             {/* Images */}
-            <View className="mb-6">
-              <Text className="text-sm font-medium text-gray-700 mb-2">Photos</Text>
+            <View style={styles.inputGroupLarge}>
+              <Text style={styles.label}>Photos</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className="flex-row gap-3">
+                <View style={styles.imageRow}>
                   {/* Add buttons */}
-                  <TouchableOpacity
-                    className="w-24 h-24 bg-gray-100 rounded-xl items-center justify-center border-2 border-dashed border-gray-300"
-                    onPress={takePhoto}
-                  >
+                  <TouchableOpacity style={styles.addImageButton} onPress={takePhoto}>
                     <Ionicons name="camera" size={28} color="#9CA3AF" />
-                    <Text className="text-xs text-gray-500 mt-1">Photo</Text>
+                    <Text style={styles.addImageText}>Photo</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    className="w-24 h-24 bg-gray-100 rounded-xl items-center justify-center border-2 border-dashed border-gray-300"
-                    onPress={pickImage}
-                  >
+                  <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
                     <Ionicons name="images" size={28} color="#9CA3AF" />
-                    <Text className="text-xs text-gray-500 mt-1">Galerie</Text>
+                    <Text style={styles.addImageText}>Galerie</Text>
                   </TouchableOpacity>
 
                   {/* Preview images */}
                   {images.map((uri, index) => (
-                    <View key={index} className="relative">
-                      <Image
-                        source={{ uri }}
-                        className="w-24 h-24 rounded-xl"
-                        resizeMode="cover"
-                      />
+                    <View key={index} style={styles.imagePreviewContainer}>
+                      <Image source={{ uri }} style={styles.imagePreview} resizeMode="cover" />
                       <TouchableOpacity
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full items-center justify-center"
+                        style={styles.removeImageButton}
                         onPress={() => removeImage(index)}
                       >
                         <Ionicons name="close" size={14} color="#ffffff" />
@@ -263,18 +255,16 @@ export const AddPOIBottomSheet = forwardRef<BottomSheet, AddPOIBottomSheetProps>
 
             {/* Submit */}
             <TouchableOpacity
-              className={`py-4 rounded-xl items-center ${
-                isSubmitting ? 'bg-primary-400' : 'bg-primary-600'
-              }`}
+              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
               onPress={handleSubmit}
               disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <View className="flex-row items-center">
+                <View style={styles.submitButtonContent}>
                   <Ionicons name="add-circle" size={20} color="#ffffff" />
-                  <Text className="ml-2 text-white font-semibold text-lg">Créer le POI</Text>
+                  <Text style={styles.submitButtonText}>Créer le POI</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -284,6 +274,147 @@ export const AddPOIBottomSheet = forwardRef<BottomSheet, AddPOIBottomSheetProps>
     );
   }
 );
+
+const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 24,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  locationText: {
+    marginLeft: 8,
+    color: '#4B5563',
+    fontSize: 14,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputGroupLarge: {
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  required: {
+    color: '#EF4444',
+  },
+  input: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    color: '#111827',
+    fontSize: 16,
+  },
+  textArea: {
+    minHeight: 80,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  categoryChipSelected: {
+    borderColor: '#2f9e44',
+    backgroundColor: '#ecfdf5',
+  },
+  categoryChipUnselected: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  categoryChipText: {
+    fontWeight: '500',
+  },
+  categoryChipTextSelected: {
+    color: '#2f9e44',
+  },
+  categoryChipTextUnselected: {
+    color: '#374151',
+  },
+  imageRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  addImageButton: {
+    width: 96,
+    height: 96,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#D1D5DB',
+  },
+  addImageText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  imagePreviewContainer: {
+    position: 'relative',
+  },
+  imagePreview: {
+    width: 96,
+    height: 96,
+    borderRadius: 12,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    width: 24,
+    height: 24,
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButton: {
+    backgroundColor: '#2f9e44',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#86efac',
+  },
+  submitButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    marginLeft: 8,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 18,
+  },
+});
 
 AddPOIBottomSheet.displayName = 'AddPOIBottomSheet';
 

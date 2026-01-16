@@ -1,0 +1,85 @@
+# TRIBE v2 - E2E Test: Offline Mode & Sync
+# Tests creating POI offline and syncing when back online
+
+appId: host.exp.Exponent
+---
+
+# Prerequisite: User must be logged in
+- launchApp
+- assertVisible: "Rechercher un lieu..."
+
+# Step 1: Enable airplane mode (simulate offline)
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript: adb shell cmd connectivity airplane-mode enable
+
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runScript: xcrun simctl status_bar booted override --dataNetwork off
+
+# Wait a moment for offline detection
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Step 2: Try to create a POI offline
+- tapOn:
+    id: "add-poi-button"
+
+- assertVisible: "Touchez la carte pour placer le POI"
+
+- tapOn:
+    point: "50%,50%"
+
+- tapOn: "Confirmer"
+
+- assertVisible: "Nouveau POI"
+
+- tapOn: "Ex: Cafe de la Paix"
+- inputText: "Offline POI Test"
+
+- tapOn: "Decrivez ce lieu..."
+- inputText: "Created while offline"
+
+- tapOn: "Creer le POI"
+
+# Should see success even offline (saved locally)
+- assertVisible:
+    text: "Succès"
+    timeout: 5000
+
+# Should see offline indicator or queue message
+- assertVisible:
+    text: "POI sauvegardé localement"
+    optional: true
+
+- tapOn: "OK"
+
+# Step 3: Go back online
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript: adb shell cmd connectivity airplane-mode disable
+
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runScript: xcrun simctl status_bar booted override --dataNetwork wifi
+
+# Wait for sync to complete
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# Step 4: Verify sync completed
+# Could check "Mes POI" screen to see the synced POI
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Mes POI"
+
+- assertVisible: "Offline POI Test"

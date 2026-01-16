@@ -3,35 +3,43 @@ import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// Get the API URL based on the environment
-const getApiUrl = (): string => {
-  // In development with Expo Go, we need to use the machine's IP
-  // The manifest URL contains the IP of the development machine
-  if (__DEV__) {
-    const manifestUrl = Constants.expoConfig?.hostUri;
-    if (manifestUrl) {
-      const hostIp = manifestUrl.split(':')[0];
-      return `http://${hostIp}:4000/api/v1`;
-    }
-    // Fallback for Android emulator
-    if (Platform.OS === 'android') {
-      return 'http://10.0.2.2:4000/api/v1';
-    }
-    // Fallback for iOS simulator
-    return 'http://localhost:4000/api/v1';
-  }
-  // Production URL (to be configured)
-  return 'https://api.tribe.sn/api/v1';
-};
+// Get the API URL from environment variable
+const API_URL = `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1`;
 
-const API_URL = getApiUrl();
+// Log the API URL for debugging
+console.log('🔌 API URL configured:', API_URL);
 
 export const api = axios.create({
   baseURL: API_URL,
+  timeout: 10000, // 10 second timeout
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Add request logging
+api.interceptors.request.use(
+  (config) => {
+    console.log(`📤 ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+    return config;
+  },
+  (error) => {
+    console.error('📤 Request error:', error.message);
+    return Promise.reject(error);
+  }
+);
+
+// Add response logging
+api.interceptors.response.use(
+  (response) => {
+    console.log(`📥 ${response.status} ${response.config.url}`);
+    return response;
+  },
+  (error) => {
+    console.error(`📥 Error: ${error.message}`, error.config?.url);
+    return Promise.reject(error);
+  }
+);
 
 // Request interceptor to add auth token
 api.interceptors.request.use(

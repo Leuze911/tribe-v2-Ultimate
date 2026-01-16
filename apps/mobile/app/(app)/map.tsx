@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, TouchableOpacity, Text, ActivityIndicator, TextInput, StyleSheet, Platform, ScrollView, Dimensions, KeyboardAvoidingView, Alert } from 'react-native';
+import { View, TouchableOpacity, Text, ActivityIndicator, TextInput, StyleSheet, Platform, ScrollView, Dimensions, KeyboardAvoidingView, Alert, Modal } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import BottomSheet, { BottomSheetView, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import Constants from 'expo-constants';
 import * as Location from 'expo-location';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/utils/theme';
 import { useMapStore } from '../../src/store/map';
@@ -11,6 +11,25 @@ import { useDrawer } from './_layout';
 import { MapView } from '../../src/components/MapView';
 import { poisService } from '../../src/services/pois';
 import type { POI, Location as LocationType } from '../../src/types';
+
+// Check if running in Expo Go (BottomSheet has issues with reanimated in Expo Go)
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Conditionally import BottomSheet only if not in Expo Go
+let BottomSheet: any = null;
+let BottomSheetScrollView: any = null;
+let BottomSheetBackdrop: any = null;
+
+if (!isExpoGo) {
+  try {
+    const bottomSheetModule = require('@gorhom/bottom-sheet');
+    BottomSheet = bottomSheetModule.default;
+    BottomSheetScrollView = bottomSheetModule.BottomSheetScrollView;
+    BottomSheetBackdrop = bottomSheetModule.BottomSheetBackdrop;
+  } catch (e) {
+    console.log('BottomSheet not available');
+  }
+}
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -274,164 +293,165 @@ export default function MapScreen() {
         </View>
       </View>
 
-      {/* POI Creation Bottom Sheet */}
-      <BottomSheet
-        ref={poiFormSheetRef}
-        index={-1}
-        snapPoints={formSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={styles.bottomSheetBackground}
-        handleIndicatorStyle={styles.bottomSheetHandle}
-        onChange={(index) => {
-          if (index === -1) {
-            cancelAddingPOI();
-            setPoiName('');
-            setPoiDescription('');
-          }
-        }}
-      >
-        <BottomSheetScrollView style={styles.bottomSheetContent}>
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Nouveau POI</Text>
-            <TouchableOpacity onPress={handleCloseForm} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={colors.gray[600]} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Coordinates Display */}
-          {newPOILocation && (
-            <View style={styles.coordinatesContainer}>
-              <Ionicons name="location" size={18} color={colors.primary[500]} />
-              <Text style={styles.coordinatesText}>
-                {newPOILocation.latitude.toFixed(6)}, {newPOILocation.longitude.toFixed(6)}
-              </Text>
+      {/* POI Creation - BottomSheet or Modal based on environment */}
+      {!isExpoGo && BottomSheet ? (
+        <BottomSheet
+          ref={poiFormSheetRef}
+          index={-1}
+          snapPoints={formSnapPoints}
+          enablePanDownToClose
+          backdropComponent={renderBackdrop}
+          backgroundStyle={styles.bottomSheetBackground}
+          handleIndicatorStyle={styles.bottomSheetHandle}
+          onChange={(index) => {
+            if (index === -1) {
+              cancelAddingPOI();
+              setPoiName('');
+              setPoiDescription('');
+            }
+          }}
+        >
+          <BottomSheetScrollView style={styles.bottomSheetContent}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Nouveau POI</Text>
+              <TouchableOpacity onPress={handleCloseForm} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color={colors.gray[600]} />
+              </TouchableOpacity>
             </View>
-          )}
 
-          {/* Form Fields */}
-          <View style={styles.formSection}>
-            <Text style={styles.inputLabel}>Nom du lieu *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Ex: Cafe de la Paix"
-              placeholderTextColor={colors.gray[400]}
-              value={poiName}
-              onChangeText={setPoiName}
-            />
-
-            <Text style={styles.inputLabel}>Description</Text>
-            <TextInput
-              style={[styles.textInput, styles.textArea]}
-              placeholder="Decrivez ce lieu..."
-              placeholderTextColor={colors.gray[400]}
-              value={poiDescription}
-              onChangeText={setPoiDescription}
-              multiline
-              numberOfLines={3}
-            />
-
-            <Text style={styles.inputLabel}>Categorie</Text>
-            <View style={styles.categorySelect}>
-              {categories.slice(1).map((cat) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[styles.categoryOption, poiCategory === cat.id && styles.categoryOptionActive]}
-                  onPress={() => setPoiCategory(cat.id)}
-                >
-                  <Ionicons
-                    name={cat.icon}
-                    size={20}
-                    color={poiCategory === cat.id ? colors.white : colors.gray[600]}
-                  />
-                  <Text style={[styles.categoryOptionText, poiCategory === cat.id && styles.categoryOptionTextActive]}>
-                    {cat.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={styles.saveButton}
-            onPress={handleSavePOI}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color={colors.white} />
-            ) : (
-              <>
-                <Ionicons name="checkmark" size={20} color={colors.white} />
-                <Text style={styles.saveButtonText}>Creer le POI</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </BottomSheetScrollView>
-      </BottomSheet>
-
-      {/* POI Detail Bottom Sheet */}
-      <BottomSheet
-        ref={poiDetailSheetRef}
-        index={-1}
-        snapPoints={detailSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={styles.bottomSheetBackground}
-        handleIndicatorStyle={styles.bottomSheetHandle}
-        onChange={(index) => {
-          if (index === -1) {
-            setSelectedPoi(null);
-          }
-        }}
-      >
-        <BottomSheetScrollView style={styles.bottomSheetContent}>
-          {selectedPoi && (
-            <>
-              <View style={styles.sheetHeader}>
-                <Text style={styles.sheetTitle}>{selectedPoi.name}</Text>
-                <TouchableOpacity
-                  onPress={() => poiDetailSheetRef.current?.close()}
-                  style={styles.closeButton}
-                >
-                  <Ionicons name="close" size={24} color={colors.gray[600]} />
-                </TouchableOpacity>
+            {newPOILocation && (
+              <View style={styles.coordinatesContainer}>
+                <Ionicons name="location" size={18} color={colors.primary[500]} />
+                <Text style={styles.coordinatesText}>
+                  {newPOILocation.latitude.toFixed(6)}, {newPOILocation.longitude.toFixed(6)}
+                </Text>
               </View>
+            )}
 
-              <View style={styles.poiDetailContent}>
-                <View style={styles.poiCategoryBadge}>
-                  <Text style={styles.poiCategoryText}>{selectedPoi.category?.name || 'POI'}</Text>
+            <View style={styles.formSection}>
+              <Text style={styles.inputLabel}>Nom du lieu *</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Ex: Cafe de la Paix"
+                placeholderTextColor={colors.gray[400]}
+                value={poiName}
+                onChangeText={setPoiName}
+              />
+
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                placeholder="Decrivez ce lieu..."
+                placeholderTextColor={colors.gray[400]}
+                value={poiDescription}
+                onChangeText={setPoiDescription}
+                multiline
+                numberOfLines={3}
+              />
+
+              <Text style={styles.inputLabel}>Categorie</Text>
+              <View style={styles.categorySelect}>
+                {categories.slice(1).map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.categoryOption, poiCategory === cat.id && styles.categoryOptionActive]}
+                    onPress={() => setPoiCategory(cat.id)}
+                  >
+                    <Ionicons
+                      name={cat.icon}
+                      size={20}
+                      color={poiCategory === cat.id ? colors.white : colors.gray[600]}
+                    />
+                    <Text style={[styles.categoryOptionText, poiCategory === cat.id && styles.categoryOptionTextActive]}>
+                      {cat.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleSavePOI}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <>
+                  <Ionicons name="checkmark" size={20} color={colors.white} />
+                  <Text style={styles.saveButtonText}>Creer le POI</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </BottomSheetScrollView>
+        </BottomSheet>
+      ) : null}
+
+      {/* POI Detail - BottomSheet or Modal based on environment */}
+      {!isExpoGo && BottomSheet ? (
+        <BottomSheet
+          ref={poiDetailSheetRef}
+          index={-1}
+          snapPoints={detailSnapPoints}
+          enablePanDownToClose
+          backdropComponent={renderBackdrop}
+          backgroundStyle={styles.bottomSheetBackground}
+          handleIndicatorStyle={styles.bottomSheetHandle}
+          onChange={(index) => {
+            if (index === -1) {
+              setSelectedPoi(null);
+            }
+          }}
+        >
+          <BottomSheetScrollView style={styles.bottomSheetContent}>
+            {selectedPoi && (
+              <>
+                <View style={styles.sheetHeader}>
+                  <Text style={styles.sheetTitle}>{selectedPoi.name}</Text>
+                  <TouchableOpacity
+                    onPress={() => poiDetailSheetRef.current?.close()}
+                    style={styles.closeButton}
+                  >
+                    <Ionicons name="close" size={24} color={colors.gray[600]} />
+                  </TouchableOpacity>
                 </View>
 
-                {selectedPoi.description && (
-                  <Text style={styles.poiDescription}>{selectedPoi.description}</Text>
-                )}
+                <View style={styles.poiDetailContent}>
+                  <View style={styles.poiCategoryBadge}>
+                    <Text style={styles.poiCategoryText}>{selectedPoi.category?.name || 'POI'}</Text>
+                  </View>
 
-                <View style={styles.poiInfoRow}>
-                  <Ionicons name="location-outline" size={18} color={colors.gray[500]} />
-                  <Text style={styles.poiInfoText}>
-                    {selectedPoi.latitude.toFixed(4)}, {selectedPoi.longitude.toFixed(4)}
-                  </Text>
-                </View>
+                  {selectedPoi.description && (
+                    <Text style={styles.poiDescription}>{selectedPoi.description}</Text>
+                  )}
 
-                {selectedPoi.author && (
                   <View style={styles.poiInfoRow}>
-                    <Ionicons name="person-outline" size={18} color={colors.gray[500]} />
+                    <Ionicons name="location-outline" size={18} color={colors.gray[500]} />
                     <Text style={styles.poiInfoText}>
-                      Ajouté par {selectedPoi.author.username}
+                      {selectedPoi.latitude.toFixed(4)}, {selectedPoi.longitude.toFixed(4)}
                     </Text>
                   </View>
-                )}
 
-                <TouchableOpacity style={styles.navigateButton}>
-                  <Ionicons name="navigate" size={20} color={colors.white} />
-                  <Text style={styles.navigateButtonText}>Itinéraire</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-        </BottomSheetScrollView>
-      </BottomSheet>
+                  {selectedPoi.author && (
+                    <View style={styles.poiInfoRow}>
+                      <Ionicons name="person-outline" size={18} color={colors.gray[500]} />
+                      <Text style={styles.poiInfoText}>
+                        Ajouté par {selectedPoi.author.username}
+                      </Text>
+                    </View>
+                  )}
+
+                  <TouchableOpacity style={styles.navigateButton}>
+                    <Ionicons name="navigate" size={20} color={colors.white} />
+                    <Text style={styles.navigateButtonText}>Itinéraire</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </BottomSheetScrollView>
+        </BottomSheet>
+      ) : null}
     </View>
   );
 }
