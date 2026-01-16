@@ -1,6 +1,6 @@
 # TRIBE v2 - Context Claude
 
-**Last Updated**: 2026-01-16 20:30 UTC
+**Last Updated**: 2026-01-16 21:45 UTC
 **Mission**: Développer l'app mobile React Native jusqu'à parité fonctionnelle complète
 
 ---
@@ -23,9 +23,10 @@
 - **Routing**: Expo Router (file-based)
 
 ### Progression Globale
-- **16/35 features** (46%)
+- **18/35 features** (51%)
 - **See**: FEATURES_GAP.md for detailed breakdown
 - **P2 REWARDS**: Complete
+- **P3 CHAT IA**: Complete
 
 ---
 
@@ -71,10 +72,14 @@
    - Challenge progress tracking ✅
    - Claim rewards ✅
 
-7. **Chat**
+7. **Chat** ✅ P3 COMPLETE
    - Full chat UI ✅
    - Message history ✅
    - Suggested questions ✅
+   - Session persistence ✅
+   - Context-aware AI responses ✅
+   - Session history modal ✅
+   - New chat/delete session ✅
 
 8. **My POIs**
    - UI layout ✅
@@ -120,13 +125,15 @@
 - Real-time badge notifications
 - Mobile screens connected to real API
 
-### 🔥 P3 - CHAT IA
-**Status**: UI done, backend stub exists
-**Need**:
-- ANTHROPIC_API_KEY (mock it for now)
-- Backend /chat endpoint
-- Context-aware responses
-- Chat history persistence
+### ✅ P3 - CHAT IA (COMPLETE)
+**Implemented**:
+- ChatSession and ChatMessage entities for persistence
+- Session management endpoints (list, get, delete)
+- User context integration (level, points, POIs count, recent POIs)
+- useChat hook for session state management
+- Session history modal with switching
+- Graceful fallback to demo responses when ANTHROPIC_API_KEY missing
+- Works with real Claude API when key is configured
 
 ### 🔥 P4 - TESTS E2E
 **Status**: ZERO tests written
