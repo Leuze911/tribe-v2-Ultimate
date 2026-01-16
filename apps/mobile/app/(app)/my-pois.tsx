@@ -169,8 +169,11 @@ export default function MyPOIsScreen() {
             <TouchableOpacity
               style={styles.poiCard}
               onPress={() => {
-                // Navigate to POI details or edit
-                // router.push(`/poi/${item.id}`);
+                if (!item.isOffline) {
+                  // Navigate to POI details for synced POIs
+                  router.push(`/poi/${item.id}` as any);
+                }
+                // Offline POIs can't be edited until synced
               }}
             >
               <View style={[

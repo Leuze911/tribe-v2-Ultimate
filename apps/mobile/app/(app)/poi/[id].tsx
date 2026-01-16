@@ -113,10 +113,10 @@ export default function POIDetailScreen() {
       {/* Content */}
       <ScrollView style={styles.content}>
         {/* Photos */}
-        {poi.photos && poi.photos.length > 0 && (
+        {poi.images && poi.images.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
-            {poi.photos.map((photoUrl, index) => (
-              <Image key={index} source={{ uri: photoUrl }} style={styles.photo} />
+            {poi.images.map((imageUrl, index) => (
+              <Image key={index} source={{ uri: imageUrl }} style={styles.photo} />
             ))}
           </ScrollView>
         )}
@@ -127,7 +127,7 @@ export default function POIDetailScreen() {
 
           {poi.category && (
             <View style={styles.categoryBadge}>
-              <Ionicons name={getCategoryIcon(poi.category.id)} size={16} color={colors.primary[600]} />
+              <Ionicons name={getCategoryIcon(poi.category.id) as any} size={16} color={colors.primary[600]} />
               <Text style={styles.categoryText}>{poi.category.name}</Text>
             </View>
           )}
@@ -156,7 +156,7 @@ export default function POIDetailScreen() {
             <View style={styles.statusRow}>
               {poi.status === 'validated' && (
                 <>
-                  <Ionicons name="checkmark-circle" size={20} color={colors.green[500]} />
+                  <Ionicons name="checkmark-circle" size={20} color={colors.primary[500]} />
                   <Text style={styles.statusTextValidated}>Validé</Text>
                 </>
               )}
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   },
   statusTextValidated: {
     fontSize: fontSize.base,
-    color: colors.green[600],
+    color: colors.primary[600],
     fontWeight: '600',
   },
   statusTextPending: {

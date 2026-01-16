@@ -33,11 +33,14 @@ export interface POI {
   description?: string;
   latitude: number;
   longitude: number;
-  category: Category;
+  category?: Category;
+  categoryId?: string;
   images: string[];
   rating?: number;
   totalRatings: number;
-  author: {
+  status?: 'pending' | 'validated' | 'rejected';
+  userId?: string;
+  author?: {
     id: string;
     username: string;
     avatar?: string;

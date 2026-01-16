@@ -81,10 +81,13 @@ export default function MapScreen() {
     })();
   }, []);
 
-  // Load POIs from API
+  // Load POIs from API - debounced search
   useEffect(() => {
-    loadPois();
-  }, [selectedCategory, userLocation]);
+    const timeoutId = setTimeout(() => {
+      loadPois();
+    }, searchQuery ? 300 : 0); // Debounce search queries
+    return () => clearTimeout(timeoutId);
+  }, [selectedCategory, userLocation, searchQuery]);
 
   const loadPois = async () => {
     try {
@@ -96,6 +99,9 @@ export default function MapScreen() {
         params.latitude = userLocation.latitude;
         params.longitude = userLocation.longitude;
         params.radius = 5000; // 5km radius
+      }
+      if (searchQuery.trim()) {
+        params.search = searchQuery.trim();
       }
       const data = await poisService.getPOIs(params);
       setPois(data);
@@ -136,6 +142,18 @@ export default function MapScreen() {
 
     setIsLoading(true);
     try {
+      // Upload photos first if any and online
+      let uploadedPhotoUrls: string[] = [];
+      if (poiPhotos.length > 0 && isOnline) {
+        try {
+          const uploadPromises = poiPhotos.map((uri) => mediaService.uploadPhoto(uri));
+          uploadedPhotoUrls = await Promise.all(uploadPromises);
+        } catch (uploadError) {
+          console.error('Photo upload failed:', uploadError);
+          // Continue without photos if upload fails
+        }
+      }
+
       if (isOnline) {
         // Try to create online first
         await poisService.createPOI({
@@ -144,6 +162,7 @@ export default function MapScreen() {
           categoryId: poiCategory,
           latitude: newPOILocation.latitude,
           longitude: newPOILocation.longitude,
+          images: uploadedPhotoUrls.length > 0 ? uploadedPhotoUrls : undefined,
         });
         Alert.alert('Succès', `POI "${poiName}" créé avec succès!`);
       } else {
@@ -154,6 +173,7 @@ export default function MapScreen() {
           categoryId: poiCategory,
           latitude: newPOILocation.latitude,
           longitude: newPOILocation.longitude,
+          // Photos will be synced later when online
         });
         Alert.alert(
           'POI sauvegardé',
@@ -165,6 +185,7 @@ export default function MapScreen() {
       poiFormSheetRef.current?.close();
       setPoiName('');
       setPoiDescription('');
+      setPoiPhotos([]);
       cancelAddingPOI();
 
       loadPois(); // Reload POIs to show the new one
