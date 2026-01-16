@@ -1,11 +1,62 @@
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/utils/theme';
+import { poisService } from '../../src/services/pois';
+import { useOffline } from '../../src/hooks/useOffline';
+import type { POI } from '../../src/types';
 
 export default function MyPOIsScreen() {
-  const pois: any[] = []; // Would come from useMyPOIs()
+  const [pois, setPois] = useState<POI[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const { offlinePOIs, isOnline } = useOffline();
+
+  useEffect(() => {
+    loadPOIs();
+  }, []);
+
+  const loadPOIs = async () => {
+    try {
+      if (isOnline) {
+        const data = await poisService.getMyPOIs();
+        setPois(data);
+      } else {
+        // Show offline POIs
+        setPois(offlinePOIs as any);
+      }
+    } catch (error) {
+      console.error('Failed to load POIs:', error);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadPOIs();
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.gray[700]} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Mes POI</Text>
+          <View style={styles.countBadge} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary[500]} />
+          <Text style={styles.loadingText}>Chargement...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -23,18 +74,36 @@ export default function MyPOIsScreen() {
         data={pois}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={styles.poiCard}>
+          <TouchableOpacity
+            style={styles.poiCard}
+            onPress={() => {
+              // Navigate to POI details or edit
+              // router.push(`/poi/${item.id}`);
+            }}
+          >
             <View style={styles.poiIcon}>
               <Ionicons name="location" size={24} color={colors.primary[500]} />
             </View>
             <View style={styles.poiInfo}>
               <Text style={styles.poiName}>{item.name}</Text>
-              <Text style={styles.poiCategory}>{item.category}</Text>
+              <Text style={styles.poiCategory}>{item.category?.name || item.categoryId}</Text>
+              <Text style={styles.poiStatus}>
+                {item.status === 'validated' && '✅ Validé'}
+                {item.status === 'pending' && '⏳ En attente'}
+                {item.status === 'rejected' && '❌ Rejeté'}
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
-          </View>
+          </TouchableOpacity>
         )}
         contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary[500]}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
@@ -133,6 +202,21 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.gray[500],
     marginTop: spacing.xs,
+  },
+  poiStatus: {
+    fontSize: fontSize.xs,
+    color: colors.gray[600],
+    marginTop: spacing.xs,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    color: colors.gray[500],
+    fontSize: fontSize.base,
   },
   emptyContainer: {
     alignItems: 'center',
