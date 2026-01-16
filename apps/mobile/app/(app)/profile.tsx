@@ -79,11 +79,19 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.actionsSection}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/settings' as any)}>
             <View style={styles.actionIcon}>
               <Ionicons name="settings-outline" size={22} color={colors.gray[600]} />
             </View>
             <Text style={styles.actionText}>Parametres</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/profile/edit' as any)}>
+            <View style={styles.actionIcon}>
+              <Ionicons name="create-outline" size={22} color={colors.gray[600]} />
+            </View>
+            <Text style={styles.actionText}>Modifier le profil</Text>
             <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
           </TouchableOpacity>
 

@@ -39,6 +39,23 @@ export const authService = {
     return response.data;
   },
 
+  async updateProfile(data: { fullName?: string; phone?: string; avatarUrl?: string }): Promise<User> {
+    const response = await api.patch('/auth/profile', data);
+    return response.data;
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    const response = await api.post('/auth/change-password', { currentPassword, newPassword });
+    return response.data;
+  },
+
+  async deleteAccount(): Promise<{ message: string }> {
+    const response = await api.delete('/auth/account');
+    await SecureStore.deleteItemAsync('accessToken');
+    await SecureStore.deleteItemAsync('refreshToken');
+    return response.data;
+  },
+
   async checkAuth(): Promise<User | null> {
     const token = await SecureStore.getItemAsync('accessToken');
     if (!token) return null;

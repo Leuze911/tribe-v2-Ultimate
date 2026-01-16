@@ -1,10 +1,37 @@
-import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/utils/theme';
+import { useAuthStore } from '../../src/store/auth';
+import { authService } from '../../src/services/auth';
 
 export default function SettingsScreen() {
+  const { logout } = useAuthStore();
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Supprimer mon compte',
+      'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authService.deleteAccount();
+              await logout();
+              router.replace('/(auth)/login');
+            } catch (error: any) {
+              Alert.alert('Erreur', error.response?.data?.message || 'Impossible de supprimer le compte');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -69,14 +96,14 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Compte</Text>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/profile/edit' as any)}>
             <View style={styles.settingInfo}>
               <Ionicons name="person-outline" size={22} color={colors.gray[600]} />
               <Text style={styles.settingLabel}>Modifier le profil</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/settings/change-password' as any)}>
             <View style={styles.settingInfo}>
               <Ionicons name="lock-closed-outline" size={22} color={colors.gray[600]} />
               <Text style={styles.settingLabel}>Changer le mot de passe</Text>
@@ -117,7 +144,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.deleteButton}>
+        <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
           <Ionicons name="trash-outline" size={20} color={colors.red[500]} />
           <Text style={styles.deleteButtonText}>Supprimer mon compte</Text>
         </TouchableOpacity>

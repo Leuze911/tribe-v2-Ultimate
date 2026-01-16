@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { Profile } from '../users/entities/profile.entity';
-import { RegisterDto, LoginDto, AuthResponseDto, UserResponseDto } from './dto';
+import { RegisterDto, LoginDto, AuthResponseDto, UserResponseDto, UpdateProfileDto, ChangePasswordDto } from './dto';
 import { GoogleProfile } from './strategies/google.strategy';
 
 @Injectable()
@@ -118,6 +118,79 @@ export class AuthService {
     }
 
     return this.mapToUserResponse(user);
+  }
+
+  async updateProfile(userId: string, updateDto: UpdateProfileDto): Promise<UserResponseDto> {
+    const user = await this.profileRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Utilisateur non trouvé');
+    }
+
+    // Update only provided fields
+    if (updateDto.fullName !== undefined) {
+      user.fullName = updateDto.fullName;
+    }
+    if (updateDto.phone !== undefined) {
+      user.phone = updateDto.phone;
+    }
+    if (updateDto.avatarUrl !== undefined) {
+      user.avatarUrl = updateDto.avatarUrl;
+    }
+
+    await this.profileRepository.save(user);
+    this.logger.log(`Profile updated for user: ${user.email}`);
+
+    return this.mapToUserResponse(user);
+  }
+
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<{ message: string }> {
+    const user = await this.profileRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Utilisateur non trouvé');
+    }
+
+    // Check if user has a password (not Google account)
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('Ce compte utilise Google pour la connexion');
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(changePasswordDto.currentPassword, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Mot de passe actuel incorrect');
+    }
+
+    // Hash new password
+    const saltRounds = 10;
+    user.passwordHash = await bcrypt.hash(changePasswordDto.newPassword, saltRounds);
+
+    await this.profileRepository.save(user);
+    this.logger.log(`Password changed for user: ${user.email}`);
+
+    return { message: 'Mot de passe modifié avec succès' };
+  }
+
+  async deleteAccount(userId: string): Promise<{ message: string }> {
+    const user = await this.profileRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Utilisateur non trouvé');
+    }
+
+    // Soft delete - mark as inactive
+    user.isActive = false;
+    await this.profileRepository.save(user);
+    this.logger.log(`Account deactivated for user: ${user.email}`);
+
+    return { message: 'Compte supprimé avec succès' };
   }
 
   async validateGoogleToken(idToken: string): Promise<AuthResponseDto> {
