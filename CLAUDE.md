@@ -1,6 +1,6 @@
 # TRIBE v2 - Context Claude
 
-**Last Updated**: 2026-01-17 00:15 UTC
+**Last Updated**: 2026-01-17 01:00 UTC
 **Mission**: Développer l'app mobile React Native jusqu'à parité fonctionnelle complète
 
 ---
@@ -23,7 +23,7 @@
 - **Routing**: Expo Router (file-based)
 
 ### Progression Globale
-- **31/35 features** (89%)
+- **34/35 features** (97%)
 - **See**: FEATURES_GAP.md for detailed breakdown
 - **P0 OFFLINE MODE**: Complete ✅
 - **P1 POI FEATURES**: Complete ✅
@@ -31,6 +31,8 @@
 - **P3 CHAT IA**: Complete ✅
 - **P4 TESTS E2E**: Complete ✅
 - **P5 PROFILE FEATURES**: Complete ✅
+- **P6 FORGOT PASSWORD**: Complete ✅
+- **P7 ERROR BOUNDARY**: Complete ✅
 
 ---
 
@@ -185,6 +187,25 @@
   - `DELETE /auth/account` - Soft delete account
 - Settings screen navigation to all profile actions ✅
 - Profile screen quick links to edit and settings ✅
+
+### ✅ P6 - FORGOT PASSWORD (COMPLETE)
+**Implemented**:
+- Forgot password screen with email input ✅
+- Success state with email sent confirmation ✅
+- Backend endpoints:
+  - `POST /auth/forgot-password` - Request password reset
+  - `POST /auth/reset-password` - Reset password with token
+- Token-based password reset (in-memory for demo) ✅
+- Link added to login screen ✅
+- Note: Integrate with email service (SendGrid, etc.) for production
+
+### ✅ P7 - ERROR BOUNDARY (COMPLETE)
+**Implemented**:
+- ErrorBoundary component with retry functionality ✅
+- User-friendly error message on JavaScript errors ✅
+- Error details in dev mode for debugging ✅
+- App wrapped with ErrorBoundary in root layout ✅
+- Ready for integration with error tracking (Sentry) ✅
 
 ---
 
