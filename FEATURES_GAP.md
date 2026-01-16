@@ -1,7 +1,7 @@
 # TRIBE v2 - FEATURES GAP ANALYSIS
 
-**Date**: 2026-01-16 21:00 UTC
-**Progression**: 20/35 (57%)
+**Date**: 2026-01-16 22:30 UTC
+**Progression**: 28/35 (80%)
 
 ---
 
@@ -30,12 +30,13 @@
 - ✅ Category filter chips
 - ✅ FAB "+" to add POI
 - ✅ Add POI mode (tap to place)
-- ✅ BottomSheet POI creation form
+- ✅ BottomSheet POI creation form with photos
 - ✅ BottomSheet POI details
 - ✅ User location permission
 - ✅ Load POIs from API
 - ✅ Level badge display
-- ❌ Search functionality (UI done, backend missing)
+- ✅ Search functionality (backend integrated)
+- ✅ Photo upload (camera + gallery)
 - ❌ Real-time POI updates
 - ❌ POI clustering on zoom out
 - ❌ Route to POI (directions)
@@ -51,12 +52,14 @@
 - ❌ Change password
 - ❌ Delete account
 
-### 📍 My POIs
+### 📍 My POIs ✅ DONE
 - ✅ UI layout complete
-- ⚠️ Load user's POIs (service missing)
-- ❌ Filter by status (pending/validated/rejected)
-- ❌ Edit POI
-- ❌ Delete POI
+- ✅ Load user's POIs from API
+- ✅ Show status (pending/validated/rejected)
+- ✅ Pull-to-refresh
+- ✅ Offline POIs display
+- ✅ Edit POI (full screen with form)
+- ✅ Delete POI (with confirmation)
 - ❌ Share POI
 
 ### 🏆 Rewards
@@ -116,13 +119,15 @@
 - ❌ Badge count
 - ❌ Deep linking from notifications
 
-### 📸 Media
-- ❌ Camera integration for POI photos
-- ❌ Image picker
-- ❌ Image upload to MinIO
-- ❌ Image compression
-- ❌ Multiple photos per POI
-- ❌ Photo gallery view
+### 📸 Media ✅ DONE
+- ✅ Camera integration for POI photos
+- ✅ Image picker
+- ✅ Image upload to MinIO via backend
+- ✅ Multiple photos per POI
+- ✅ Photo preview with remove
+- ✅ Backend upload controller
+- ❌ Image compression (optional)
+- ❌ Photo gallery view (optional)
 
 ### 🎮 Gamification
 - ✅ XP system (UI)
