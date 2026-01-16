@@ -100,7 +100,7 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} testID="back-button">
           <Ionicons name="arrow-back" size={24} color={colors.gray[800]} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -113,10 +113,10 @@ export default function ChatScreen() {
           </View>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={() => setShowHistory(true)} style={styles.historyButton}>
+          <TouchableOpacity onPress={() => setShowHistory(true)} style={styles.historyButton} testID="history-button">
             <Ionicons name="time-outline" size={24} color={colors.gray[600]} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleNewChat} style={styles.newChatButton}>
+          <TouchableOpacity onPress={handleNewChat} style={styles.newChatButton} testID="new-chat-button">
             <Ionicons name="add-circle-outline" size={24} color={colors.primary[500]} />
           </TouchableOpacity>
         </View>
@@ -173,6 +173,7 @@ export default function ChatScreen() {
             multiline
             maxLength={500}
             onSubmitEditing={handleSendMessage}
+            testID="chat-input"
           />
           <TouchableOpacity
             style={[
@@ -181,6 +182,7 @@ export default function ChatScreen() {
             ]}
             onPress={handleSendMessage}
             disabled={!inputText.trim() || isLoading}
+            testID="send-button"
           >
             <Ionicons
               name="send"

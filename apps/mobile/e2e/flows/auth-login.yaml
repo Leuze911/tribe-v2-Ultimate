@@ -1,29 +1,74 @@
 # TRIBE v2 - E2E Test: Login Flow
 # Tests basic email/password login functionality
 
-appId: host.exp.Exponent  # Expo Go app ID
+appId: host.exp.Exponent
 ---
 
 # Test: Successful login with valid credentials
-- launchApp
-- assertVisible: "Se connecter"  # Login header text
-- assertVisible: "Tribe"  # App name/logo
+- launchApp:
+    clearState: true
 
-# Fill in email field
-- tapOn: "votre@email.com"  # Email placeholder
+# Verify we're on the login screen
+- assertVisible: "Tribe"
+- assertVisible: "Se connecter"
+
+# Test 1: Fill in credentials using testIDs
+- tapOn:
+    id: "email-input"
 - inputText: "test@tribe.sn"
 
-# Fill in password field
-- tapOn: "••••••••"  # Password placeholder
+- tapOn:
+    id: "password-input"
 - inputText: "password123"
 
 # Submit login
-- tapOn: "Se connecter"  # Login button
+- tapOn:
+    id: "login-button"
 
 # Wait for navigation to map screen
 - assertVisible:
     text: "Rechercher un lieu..."
+    timeout: 10000
+
+# Verify we're on the map screen (FAB button visible)
+- assertVisible:
+    id: "add-poi-button"
+
+---
+# Test: Login with invalid credentials
+- launchApp:
+    clearState: true
+
+- assertVisible: "Tribe"
+
+- tapOn:
+    id: "email-input"
+- inputText: "invalid@email.com"
+
+- tapOn:
+    id: "password-input"
+- inputText: "wrongpassword"
+
+- tapOn:
+    id: "login-button"
+
+# Should show error alert
+- assertVisible:
+    text: "Erreur"
     timeout: 5000
 
-# Verify we're on the map screen
-- assertVisible: "Ma position"  # Location button testID
+---
+# Test: Navigate to register screen
+- launchApp:
+    clearState: true
+
+- assertVisible: "Tribe"
+- assertVisible: "Pas encore de compte ?"
+
+- tapOn:
+    id: "register-link"
+
+# Should be on register screen
+- assertVisible:
+    text: "Créer un compte"
+    timeout: 3000

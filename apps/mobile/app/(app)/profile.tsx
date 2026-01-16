@@ -26,7 +26,7 @@ export default function ProfileScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.gray[700]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profil</Text>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton} testID="logout-button">
           <Ionicons name="log-out-outline" size={24} color={colors.red[500]} />
         </TouchableOpacity>
       </View>

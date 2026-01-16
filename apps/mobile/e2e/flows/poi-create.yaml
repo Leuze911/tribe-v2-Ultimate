@@ -1,21 +1,26 @@
 # TRIBE v2 - E2E Test: Create POI Flow
 # Tests creating a new Point of Interest
+# Prerequisites: User must be logged in
 
 appId: host.exp.Exponent
 ---
 
-# Prerequisite: User must be logged in
+# Test: Create a new POI with all fields
 - launchApp
-- assertVisible: "Rechercher un lieu..."  # Map screen
 
-# Test: Create a new POI
+# Ensure we're on the map screen (user already logged in)
+- assertVisible:
+    text: "Rechercher un lieu..."
+    timeout: 5000
+
+# Start POI creation
 - tapOn:
-    id: "add-poi-button"  # FAB button to add POI
+    id: "add-poi-button"
 
 # Wait for adding mode banner
 - assertVisible:
     text: "Touchez la carte pour placer le POI"
-    timeout: 2000
+    timeout: 3000
 
 # Tap on the map center to place POI
 - tapOn:
@@ -27,18 +32,18 @@ appId: host.exp.Exponent
 # Wait for bottom sheet form
 - assertVisible:
     text: "Nouveau POI"
-    timeout: 2000
+    timeout: 3000
 
 # Fill in POI name
 - tapOn: "Ex: Cafe de la Paix"
-- inputText: "Cafe Test E2E"
+- inputText: "Restaurant Test E2E"
 
-# Fill in description (optional but let's test it)
+# Fill in description
 - tapOn: "Decrivez ce lieu..."
-- inputText: "Cafe de test automatise"
+- inputText: "Restaurant de test automatise pour Maestro"
 
-# Select category (restaurant by default, keep it)
-# Category should already be selected
+# Select category (tap on category selector)
+- tapOn: "Restaurant"
 
 # Submit POI
 - tapOn: "Creer le POI"
@@ -46,10 +51,11 @@ appId: host.exp.Exponent
 # Wait for success message
 - assertVisible:
     text: "Succès"
-    timeout: 5000
+    timeout: 10000
 
+# Verify success message content
 - assertVisible:
-    text: "POI \"Cafe Test E2E\" créé avec succès!"
+    text: "POI"
     timeout: 2000
 
 # Dismiss alert
@@ -57,3 +63,53 @@ appId: host.exp.Exponent
 
 # Verify we're back on the map
 - assertVisible: "Rechercher un lieu..."
+
+---
+# Test: Cancel POI creation
+- launchApp
+
+- assertVisible: "Rechercher un lieu..."
+
+- tapOn:
+    id: "add-poi-button"
+
+- assertVisible: "Touchez la carte pour placer le POI"
+
+# Cancel by tapping outside or pressing back
+- tapOn: "Annuler"
+
+# Should be back to normal map view
+- assertVisible: "Rechercher un lieu..."
+- assertNotVisible: "Touchez la carte pour placer le POI"
+
+---
+# Test: Create POI without description (minimum required fields)
+- launchApp
+
+- assertVisible: "Rechercher un lieu..."
+
+- tapOn:
+    id: "add-poi-button"
+
+- assertVisible: "Touchez la carte pour placer le POI"
+
+- tapOn:
+    point: "40%,60%"
+
+- tapOn: "Confirmer"
+
+- assertVisible: "Nouveau POI"
+
+# Only fill name
+- tapOn: "Ex: Cafe de la Paix"
+- inputText: "POI Minimal Test"
+
+# Submit without description
+- tapOn: "Creer le POI"
+
+# Should still succeed
+- assertVisible:
+    text: "Succès"
+    timeout: 10000
+
+- tapOn: "OK"

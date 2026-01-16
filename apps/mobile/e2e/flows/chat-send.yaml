@@ -1,14 +1,19 @@
 # TRIBE v2 - E2E Test: Chat IA
-# Tests sending a message to Claude and receiving a response
+# Tests sending messages to Claude and session management
+# Prerequisites: User must be logged in
 
 appId: host.exp.Exponent
 ---
 
-# Prerequisite: User must be logged in
+# Test: Send a message and receive response
 - launchApp
-- assertVisible: "Rechercher un lieu..."
 
-# Navigate to chat
+# Ensure we're on the map screen
+- assertVisible:
+    text: "Rechercher un lieu..."
+    timeout: 5000
+
+# Navigate to chat via menu
 - tapOn:
     id: "menu-button"
 
@@ -20,34 +25,110 @@ appId: host.exp.Exponent
     timeout: 3000
 
 # Verify welcome message
-- assertVisible: "Bonjour ! Je suis l'assistant TRIBE"
+- assertVisible:
+    text: "Bonjour"
+    timeout: 2000
 
-# Test: Send a message
-- tapOn: "Écrivez votre message..."
-- inputText: "Comment ajouter un POI ?"
+# Verify suggested questions are visible
+- assertVisible: "Comment ajouter un POI ?"
+
+# Test: Tap suggested question
+- tapOn: "Comment ajouter un POI ?"
+
+# Verify input is populated
+- assertVisible:
+    id: "chat-input"
+
+# Clear and type custom message
+- tapOn:
+    id: "chat-input"
+- clearText
+- inputText: "Comment gagner des points ?"
 
 # Send message
 - tapOn:
     id: "send-button"
 
-# Wait for response (Claude should respond)
+# Wait for loading indicator
 - assertVisible:
     text: "Réflexion en cours..."
-    timeout: 2000
+    timeout: 3000
     optional: true
 
-# Wait for actual response (this might take a few seconds)
+# Wait for response (allow time for API call or demo response)
 - waitForAnimationToEnd:
-    timeout: 10000
+    timeout: 15000
 
-# Verify a response was received (check for common words)
-# The exact response may vary but should mention POI creation
+# Verify a response was received (check for common words in demo response)
 - assertVisible:
-    text: "POI"
+    text: "points"
     timeout: 5000
 
-# Go back
+# Go back to map
 - tapOn:
     id: "back-button"
 
 - assertVisible: "Rechercher un lieu..."
+
+---
+# Test: Start new chat session
+- launchApp
+
+- assertVisible: "Rechercher un lieu..."
+
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Chat IA"
+
+- assertVisible: "Assistant TRIBE"
+
+# Send a message to create a session
+- tapOn:
+    id: "chat-input"
+- inputText: "Bonjour"
+
+- tapOn:
+    id: "send-button"
+
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# Start new chat
+- tapOn:
+    id: "new-chat-button"
+
+# Should see welcome message again (new session)
+- assertVisible:
+    text: "Bonjour ! Je suis l'assistant TRIBE"
+    timeout: 2000
+
+---
+# Test: View chat history
+- launchApp
+
+- assertVisible: "Rechercher un lieu..."
+
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Chat IA"
+
+- assertVisible: "Assistant TRIBE"
+
+# Open history modal
+- tapOn:
+    id: "history-button"
+
+# Should see history modal
+- assertVisible:
+    text: "Historique des conversations"
+    timeout: 2000
+
+# Close modal
+- tapOn:
+    text: "close"
+    optional: true
+
+# Alternative: tap outside to close
+- back

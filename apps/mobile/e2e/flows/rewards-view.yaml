@@ -1,0 +1,67 @@
+# TRIBE v2 - E2E Test: Rewards & Badges
+# Tests viewing rewards, badges and progress
+# Prerequisites: User must be logged in
+
+appId: host.exp.Exponent
+---
+
+# Test: View rewards screen
+- launchApp
+
+# Ensure we're on the map screen
+- assertVisible:
+    text: "Rechercher un lieu..."
+    timeout: 5000
+
+# Navigate to rewards via menu
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Recompenses"
+
+# Wait for rewards screen
+- assertVisible:
+    text: "Recompenses"
+    timeout: 3000
+
+# Verify progress card elements
+- assertVisible: "Niveau"
+- assertVisible: "badges obtenus"
+
+# Verify badges section
+- assertVisible: "Badges"
+
+# Scroll to see more badges
+- scroll:
+    direction: DOWN
+
+# Go back to map
+- tapOn:
+    id: "back-button"
+
+- assertVisible: "Rechercher un lieu..."
+
+---
+# Test: Pull to refresh rewards
+- launchApp
+
+- assertVisible: "Rechercher un lieu..."
+
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Recompenses"
+
+- assertVisible: "Recompenses"
+
+# Pull to refresh
+- swipe:
+    direction: DOWN
+    speed: SLOW
+
+# Wait for refresh to complete
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Should still see rewards
+- assertVisible: "badges obtenus"

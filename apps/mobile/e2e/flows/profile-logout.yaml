@@ -1,0 +1,72 @@
+# TRIBE v2 - E2E Test: Profile & Logout
+# Tests profile viewing and logout functionality
+# Prerequisites: User must be logged in
+
+appId: host.exp.Exponent
+---
+
+# Test: View profile details
+- launchApp
+
+# Ensure we're on the map screen
+- assertVisible:
+    text: "Rechercher un lieu..."
+    timeout: 5000
+
+# Navigate to profile via menu
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Profil"
+
+# Wait for profile screen
+- assertVisible:
+    text: "Profil"
+    timeout: 3000
+
+# Verify profile elements
+- assertVisible: "POI crees"
+- assertVisible: "Niveau"
+- assertVisible: "XP Total"
+
+# Verify sections
+- assertVisible: "Badges"
+
+# Scroll to see actions
+- scroll:
+    direction: DOWN
+
+- assertVisible: "Parametres"
+- assertVisible: "Aide et support"
+
+# Go back
+- back
+
+- assertVisible: "Rechercher un lieu..."
+
+---
+# Test: Logout flow
+- launchApp
+
+- assertVisible: "Rechercher un lieu..."
+
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Profil"
+
+- assertVisible: "Profil"
+
+# Tap logout button
+- tapOn:
+    id: "logout-button"
+
+# Should navigate to login screen
+- assertVisible:
+    text: "Se connecter"
+    timeout: 5000
+
+# Verify we're on login screen
+- assertVisible: "Tribe"
+- assertVisible:
+    id: "login-button"

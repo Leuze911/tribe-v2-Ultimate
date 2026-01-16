@@ -1,0 +1,92 @@
+# TRIBE v2 - E2E Test: Leaderboard
+# Tests viewing leaderboard with period filters
+# Prerequisites: User must be logged in
+
+appId: host.exp.Exponent
+---
+
+# Test: View leaderboard and switch periods
+- launchApp
+
+# Ensure we're on the map screen
+- assertVisible:
+    text: "Rechercher un lieu..."
+    timeout: 5000
+
+# Navigate to leaderboard via menu
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Classement"
+
+# Wait for leaderboard screen
+- assertVisible:
+    text: "Classement"
+    timeout: 3000
+
+# Verify period selector
+- assertVisible: "Global"
+- assertVisible: "Ce mois"
+- assertVisible: "Cette semaine"
+
+# Verify default is "Global" (all_time)
+- assertVisible:
+    id: "period-all_time"
+
+# Switch to monthly
+- tapOn:
+    id: "period-monthly"
+
+# Wait for data to reload
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Verify we're on monthly view
+- assertVisible: "Ce mois"
+
+# Switch to weekly
+- tapOn:
+    id: "period-weekly"
+
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Verify we're on weekly view
+- assertVisible: "Cette semaine"
+
+# Go back to global
+- tapOn:
+    id: "period-all_time"
+
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Go back to map
+- back
+
+- assertVisible: "Rechercher un lieu..."
+
+---
+# Test: Pull to refresh leaderboard
+- launchApp
+
+- assertVisible: "Rechercher un lieu..."
+
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Classement"
+
+- assertVisible: "Classement"
+
+# Pull to refresh
+- swipe:
+    direction: DOWN
+    speed: SLOW
+
+# Wait for refresh
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Should still see leaderboard
+- assertVisible: "Global"

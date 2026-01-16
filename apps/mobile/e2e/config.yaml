@@ -1,0 +1,37 @@
+# TRIBE v2 - Maestro E2E Test Configuration
+# Run all tests: maestro test e2e/flows/
+# Run specific test: maestro test e2e/flows/auth-login.yaml
+
+# App Configuration
+appId: host.exp.Exponent
+
+# Global Settings
+name: TRIBE v2 E2E Tests
+tags:
+  - mobile
+  - react-native
+  - expo
+
+# Test Execution Order (recommended)
+# 1. auth-login.yaml - Must pass first (login functionality)
+# 2. navigation.yaml - Verify all screens accessible
+# 3. poi-create.yaml - Core feature
+# 4. rewards-view.yaml - View rewards
+# 5. leaderboard-view.yaml - View leaderboard
+# 6. chat-send.yaml - Chat functionality
+# 7. profile-logout.yaml - Run last (logs out user)
+# 8. offline-sync.yaml - Requires special network conditions
+
+# Environment Variables (can be overridden)
+env:
+  TEST_EMAIL: test@tribe.sn
+  TEST_PASSWORD: password123
+  API_URL: http://localhost:4000
+
+# Timeouts
+initFlow:
+  timeout: 30000
+
+# Screenshots on failure
+onFlowComplete:
+  - takeScreenshot

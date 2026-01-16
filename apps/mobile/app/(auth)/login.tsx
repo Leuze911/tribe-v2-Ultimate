@@ -78,6 +78,7 @@ export default function LoginScreen() {
               style={[styles.googleButton, (!isGoogleReady || isGoogleLoading) && styles.buttonDisabled]}
               onPress={handleGoogleLogin}
               disabled={!isGoogleReady || isGoogleLoading || isLoading}
+              testID="google-login-button"
             >
               {isGoogleLoading ? (
                 <ActivityIndicator color={colors.gray[700]} />
@@ -111,6 +112,7 @@ export default function LoginScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
+                    testID="email-input"
                   />
                 </View>
               </View>
@@ -127,6 +129,7 @@ export default function LoginScreen() {
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
+                    testID="password-input"
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                     <Ionicons
@@ -142,6 +145,7 @@ export default function LoginScreen() {
                 style={[styles.button, isLoading && styles.buttonDisabled]}
                 onPress={handleLogin}
                 disabled={isLoading}
+                testID="login-button"
               >
                 {isLoading ? (
                   <ActivityIndicator color={colors.white} />
@@ -155,7 +159,7 @@ export default function LoginScreen() {
             <View style={styles.footer}>
               <Text style={styles.footerText}>Pas encore de compte ? </Text>
               <Link href="/(auth)/register" asChild>
-                <TouchableOpacity>
+                <TouchableOpacity testID="register-link">
                   <Text style={styles.footerLink}>S'inscrire</Text>
                 </TouchableOpacity>
               </Link>

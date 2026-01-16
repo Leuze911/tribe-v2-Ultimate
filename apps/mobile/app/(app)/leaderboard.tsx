@@ -97,6 +97,7 @@ export default function LeaderboardScreen() {
             key={p.key}
             style={[styles.periodButton, period === p.key && styles.periodButtonActive]}
             onPress={() => setPeriod(p.key)}
+            testID={`period-${p.key}`}
           >
             <Text style={[styles.periodButtonText, period === p.key && styles.periodButtonTextActive]}>
               {p.label}

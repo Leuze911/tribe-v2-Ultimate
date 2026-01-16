@@ -72,7 +72,7 @@ export default function RewardsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} testID="back-button">
           <Ionicons name="arrow-back" size={24} color={colors.gray[700]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Recompenses</Text>
@@ -80,6 +80,7 @@ export default function RewardsScreen() {
       </View>
 
       <ScrollView
+        testID="rewards-list"
         style={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />

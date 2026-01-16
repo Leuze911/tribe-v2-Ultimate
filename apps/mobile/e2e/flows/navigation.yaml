@@ -1,0 +1,122 @@
+# TRIBE v2 - E2E Test: Navigation
+# Tests menu navigation and screen transitions
+# Prerequisites: User must be logged in
+
+appId: host.exp.Exponent
+---
+
+# Test: Navigate through all main screens via menu
+- launchApp
+
+# Ensure we're on the map screen
+- assertVisible:
+    text: "Rechercher un lieu..."
+    timeout: 5000
+
+# Open menu
+- tapOn:
+    id: "menu-button"
+
+# Verify menu items are visible
+- assertVisible: "Profil"
+- assertVisible: "Mes POI"
+- assertVisible: "Recompenses"
+- assertVisible: "Classement"
+- assertVisible: "Chat IA"
+
+# Navigate to Profile
+- tapOn: "Profil"
+
+- assertVisible:
+    text: "Profil"
+    timeout: 3000
+
+- assertVisible:
+    id: "logout-button"
+
+# Go back to map
+- back
+
+- assertVisible: "Rechercher un lieu..."
+
+# Navigate to My POIs
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Mes POI"
+
+- assertVisible:
+    text: "Mes POI"
+    timeout: 3000
+
+- back
+
+- assertVisible: "Rechercher un lieu..."
+
+# Navigate to Rewards
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Recompenses"
+
+- assertVisible:
+    text: "Recompenses"
+    timeout: 3000
+
+- back
+
+- assertVisible: "Rechercher un lieu..."
+
+# Navigate to Leaderboard
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Classement"
+
+- assertVisible:
+    text: "Classement"
+    timeout: 3000
+
+- back
+
+- assertVisible: "Rechercher un lieu..."
+
+# Navigate to Chat
+- tapOn:
+    id: "menu-button"
+
+- tapOn: "Chat IA"
+
+- assertVisible:
+    text: "Assistant TRIBE"
+    timeout: 3000
+
+- tapOn:
+    id: "back-button"
+
+- assertVisible: "Rechercher un lieu..."
+
+---
+# Test: Map interactions
+- launchApp
+
+- assertVisible: "Rechercher un lieu..."
+
+# Test locate button
+- tapOn:
+    id: "locate-button"
+
+# Wait for location centering
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Test category filters (if visible)
+- assertVisible: "Restaurants"
+  optional: true
+
+- tapOn:
+    text: "Restaurants"
+    optional: true
+
+# Map should still be visible
+- assertVisible: "Rechercher un lieu..."
