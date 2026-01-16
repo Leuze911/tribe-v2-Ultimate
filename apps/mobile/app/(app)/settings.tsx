@@ -5,9 +5,13 @@ import { router } from 'expo-router';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/utils/theme';
 import { useAuthStore } from '../../src/store/auth';
 import { authService } from '../../src/services/auth';
+import { useTheme } from '../../src/hooks/useTheme';
+import { useThemeStore } from '../../src/store/theme';
 
 export default function SettingsScreen() {
   const { logout } = useAuthStore();
+  const { isDark, theme } = useTheme();
+  const { setMode, mode } = useThemeStore();
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -33,118 +37,122 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, isDark && { backgroundColor: theme.background }]} edges={['top']}>
+      <View style={[styles.header, isDark && { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.gray[700]} />
+          <Ionicons name="arrow-back" size={24} color={isDark ? theme.text : colors.gray[700]} />
         </TouchableOpacity>
-        <Text style={styles.title}>Parametres</Text>
+        <Text style={[styles.title, isDark && { color: theme.text }]}>Parametres</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView style={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          <View style={styles.settingItem}>
+        <View style={[styles.section, isDark && { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, isDark && { color: theme.textSecondary }]}>Notifications</Text>
+          <View style={[styles.settingItem, isDark && { borderBottomColor: theme.borderLight }]}>
             <View style={styles.settingInfo}>
-              <Ionicons name="notifications-outline" size={22} color={colors.gray[600]} />
-              <Text style={styles.settingLabel}>Notifications push</Text>
+              <Ionicons name="notifications-outline" size={22} color={isDark ? theme.textSecondary : colors.gray[600]} />
+              <Text style={[styles.settingLabel, isDark && { color: theme.text }]}>Notifications push</Text>
             </View>
             <Switch
-              trackColor={{ false: colors.gray[300], true: colors.primary[400] }}
+              trackColor={{ false: isDark ? theme.border : colors.gray[300], true: colors.primary[400] }}
               thumbColor={colors.white}
               value={true}
             />
           </View>
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, isDark && { borderBottomColor: theme.borderLight }]}>
             <View style={styles.settingInfo}>
-              <Ionicons name="mail-outline" size={22} color={colors.gray[600]} />
-              <Text style={styles.settingLabel}>Notifications email</Text>
+              <Ionicons name="mail-outline" size={22} color={isDark ? theme.textSecondary : colors.gray[600]} />
+              <Text style={[styles.settingLabel, isDark && { color: theme.text }]}>Notifications email</Text>
             </View>
             <Switch
-              trackColor={{ false: colors.gray[300], true: colors.primary[400] }}
+              trackColor={{ false: isDark ? theme.border : colors.gray[300], true: colors.primary[400] }}
               thumbColor={colors.white}
               value={false}
             />
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Affichage</Text>
-          <View style={styles.settingItem}>
+        <View style={[styles.section, isDark && { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, isDark && { color: theme.textSecondary }]}>Affichage</Text>
+          <View style={[styles.settingItem, isDark && { borderBottomColor: theme.borderLight }]}>
             <View style={styles.settingInfo}>
-              <Ionicons name="moon-outline" size={22} color={colors.gray[600]} />
-              <Text style={styles.settingLabel}>Mode sombre</Text>
+              <Ionicons name="moon-outline" size={22} color={isDark ? theme.textSecondary : colors.gray[600]} />
+              <Text style={[styles.settingLabel, isDark && { color: theme.text }]}>Mode sombre</Text>
             </View>
             <Switch
               trackColor={{ false: colors.gray[300], true: colors.primary[400] }}
               thumbColor={colors.white}
-              value={false}
+              value={isDark}
+              onValueChange={(value) => setMode(value ? 'dark' : 'light')}
             />
           </View>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={[styles.settingItem, isDark && { borderBottomColor: theme.borderLight }]}>
             <View style={styles.settingInfo}>
-              <Ionicons name="language-outline" size={22} color={colors.gray[600]} />
-              <Text style={styles.settingLabel}>Langue</Text>
+              <Ionicons name="language-outline" size={22} color={isDark ? theme.textSecondary : colors.gray[600]} />
+              <Text style={[styles.settingLabel, isDark && { color: theme.text }]}>Langue</Text>
             </View>
             <View style={styles.settingValue}>
-              <Text style={styles.settingValueText}>Francais</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
+              <Text style={[styles.settingValueText, isDark && { color: theme.textSecondary }]}>Francais</Text>
+              <Ionicons name="chevron-forward" size={20} color={isDark ? theme.textMuted : colors.gray[400]} />
             </View>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Compte</Text>
-          <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/profile/edit' as any)}>
+        <View style={[styles.section, isDark && { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, isDark && { color: theme.textSecondary }]}>Compte</Text>
+          <TouchableOpacity style={[styles.settingItem, isDark && { borderBottomColor: theme.borderLight }]} onPress={() => router.push('/profile/edit' as any)}>
             <View style={styles.settingInfo}>
-              <Ionicons name="person-outline" size={22} color={colors.gray[600]} />
-              <Text style={styles.settingLabel}>Modifier le profil</Text>
+              <Ionicons name="person-outline" size={22} color={isDark ? theme.textSecondary : colors.gray[600]} />
+              <Text style={[styles.settingLabel, isDark && { color: theme.text }]}>Modifier le profil</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
+            <Ionicons name="chevron-forward" size={20} color={isDark ? theme.textMuted : colors.gray[400]} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/settings/change-password' as any)}>
+          <TouchableOpacity style={[styles.settingItem, isDark && { borderBottomColor: theme.borderLight }]} onPress={() => router.push('/settings/change-password' as any)}>
             <View style={styles.settingInfo}>
-              <Ionicons name="lock-closed-outline" size={22} color={colors.gray[600]} />
-              <Text style={styles.settingLabel}>Changer le mot de passe</Text>
+              <Ionicons name="lock-closed-outline" size={22} color={isDark ? theme.textSecondary : colors.gray[600]} />
+              <Text style={[styles.settingLabel, isDark && { color: theme.text }]}>Changer le mot de passe</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
+            <Ionicons name="chevron-forward" size={20} color={isDark ? theme.textMuted : colors.gray[400]} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={[styles.settingItem, isDark && { borderBottomColor: theme.borderLight }]}>
             <View style={styles.settingInfo}>
-              <Ionicons name="shield-checkmark-outline" size={22} color={colors.gray[600]} />
-              <Text style={styles.settingLabel}>Confidentialite</Text>
+              <Ionicons name="shield-checkmark-outline" size={22} color={isDark ? theme.textSecondary : colors.gray[600]} />
+              <Text style={[styles.settingLabel, isDark && { color: theme.text }]}>Confidentialite</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
+            <Ionicons name="chevron-forward" size={20} color={isDark ? theme.textMuted : colors.gray[400]} />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>A propos</Text>
-          <TouchableOpacity style={styles.settingItem}>
+        <View style={[styles.section, isDark && { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, isDark && { color: theme.textSecondary }]}>A propos</Text>
+          <TouchableOpacity style={[styles.settingItem, isDark && { borderBottomColor: theme.borderLight }]}>
             <View style={styles.settingInfo}>
-              <Ionicons name="document-text-outline" size={22} color={colors.gray[600]} />
-              <Text style={styles.settingLabel}>Conditions d'utilisation</Text>
+              <Ionicons name="document-text-outline" size={22} color={isDark ? theme.textSecondary : colors.gray[600]} />
+              <Text style={[styles.settingLabel, isDark && { color: theme.text }]}>Conditions d'utilisation</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
+            <Ionicons name="chevron-forward" size={20} color={isDark ? theme.textMuted : colors.gray[400]} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={[styles.settingItem, isDark && { borderBottomColor: theme.borderLight }]}>
             <View style={styles.settingInfo}>
-              <Ionicons name="help-circle-outline" size={22} color={colors.gray[600]} />
-              <Text style={styles.settingLabel}>Aide et support</Text>
+              <Ionicons name="help-circle-outline" size={22} color={isDark ? theme.textSecondary : colors.gray[600]} />
+              <Text style={[styles.settingLabel, isDark && { color: theme.text }]}>Aide et support</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
+            <Ionicons name="chevron-forward" size={20} color={isDark ? theme.textMuted : colors.gray[400]} />
           </TouchableOpacity>
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, isDark && { borderBottomColor: theme.borderLight }]}>
             <View style={styles.settingInfo}>
-              <Ionicons name="information-circle-outline" size={22} color={colors.gray[600]} />
-              <Text style={styles.settingLabel}>Version</Text>
+              <Ionicons name="information-circle-outline" size={22} color={isDark ? theme.textSecondary : colors.gray[600]} />
+              <Text style={[styles.settingLabel, isDark && { color: theme.text }]}>Version</Text>
             </View>
-            <Text style={styles.versionText}>2.0.0</Text>
+            <Text style={[styles.versionText, isDark && { color: theme.textMuted }]}>2.0.0</Text>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
+        <TouchableOpacity
+          style={[styles.deleteButton, isDark && { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}
+          onPress={handleDeleteAccount}
+        >
           <Ionicons name="trash-outline" size={20} color={colors.red[500]} />
           <Text style={styles.deleteButtonText}>Supprimer mon compte</Text>
         </TouchableOpacity>

@@ -8,6 +8,7 @@ import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/util
 import { useMapStore } from '../../src/store/map';
 import { useAuthStore } from '../../src/store/auth';
 import { useOffline } from '../../src/hooks/useOffline';
+import { useTheme } from '../../src/hooks/useTheme';
 import { useDrawer } from './_layout';
 import { MapView } from '../../src/components/MapView';
 import { poisService } from '../../src/services/pois';
@@ -55,6 +56,7 @@ export default function MapScreen() {
   const { searchQuery, setSearchQuery, isAddingPOI, startAddingPOI, cancelAddingPOI, confirmPOILocation, newPOILocation, setUserLocation, userLocation } = useMapStore();
   const { user } = useAuthStore();
   const { isOnline, syncStatus, isSyncing, createPOIOffline, getPendingCount } = useOffline();
+  const { isDark, theme } = useTheme();
 
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -292,26 +294,26 @@ export default function MapScreen() {
       <SafeAreaView style={styles.topFloatingUI} edges={['top']} pointerEvents="box-none">
         <View style={styles.searchContainer}>
           <TouchableOpacity
-            style={styles.menuButton}
+            style={[styles.menuButton, isDark && { backgroundColor: theme.surface }]}
             onPress={openDrawer}
             testID="menu-button"
             accessibilityLabel="Menu"
           >
-            <Ionicons name="menu" size={24} color={colors.gray[700]} />
+            <Ionicons name="menu" size={24} color={isDark ? theme.text : colors.gray[700]} />
           </TouchableOpacity>
 
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color={colors.gray[400]} />
+          <View style={[styles.searchBar, isDark && { backgroundColor: theme.surface }]}>
+            <Ionicons name="search" size={20} color={isDark ? theme.textMuted : colors.gray[400]} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, isDark && { color: theme.text }]}
               placeholder="Rechercher un lieu..."
-              placeholderTextColor={colors.gray[400]}
+              placeholderTextColor={isDark ? theme.textMuted : colors.gray[400]}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery ? (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color={colors.gray[400]} />
+                <Ionicons name="close-circle" size={20} color={isDark ? theme.textMuted : colors.gray[400]} />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -327,15 +329,23 @@ export default function MapScreen() {
           {categories.map((cat) => (
             <TouchableOpacity
               key={cat.id}
-              style={[styles.chip, selectedCategory === cat.id && styles.chipActive]}
+              style={[
+                styles.chip,
+                isDark && { backgroundColor: theme.surface },
+                selectedCategory === cat.id && styles.chipActive
+              ]}
               onPress={() => setSelectedCategory(cat.id)}
             >
               <Ionicons
                 name={cat.icon}
                 size={16}
-                color={selectedCategory === cat.id ? colors.white : colors.gray[600]}
+                color={selectedCategory === cat.id ? colors.white : isDark ? theme.textSecondary : colors.gray[600]}
               />
-              <Text style={[styles.chipText, selectedCategory === cat.id && styles.chipTextActive]}>
+              <Text style={[
+                styles.chipText,
+                isDark && { color: theme.textSecondary },
+                selectedCategory === cat.id && styles.chipTextActive
+              ]}>
                 {cat.label}
               </Text>
             </TouchableOpacity>
@@ -361,7 +371,7 @@ export default function MapScreen() {
       {/* FAB Buttons */}
       <View style={[styles.fabContainer, { bottom: insets.bottom + spacing.xl }]}>
         <TouchableOpacity
-          style={styles.fabSecondary}
+          style={[styles.fabSecondary, isDark && { backgroundColor: theme.surface }]}
           testID="locate-button"
           accessibilityLabel="Ma position"
         >
@@ -381,13 +391,13 @@ export default function MapScreen() {
       </View>
 
       {/* User Level Badge - Bottom Left */}
-      <View style={[styles.userBadge, { bottom: insets.bottom + spacing.xl }]}>
+      <View style={[styles.userBadge, isDark && { backgroundColor: theme.surface }, { bottom: insets.bottom + spacing.xl }]}>
         <View style={styles.userBadgeAvatar}>
           <Ionicons name="person" size={16} color={colors.white} />
         </View>
         <View>
-          <Text style={styles.userBadgeName}>Niveau {user?.level || 1}</Text>
-          <Text style={styles.userBadgeXp}>{user?.xp || 0} XP</Text>
+          <Text style={[styles.userBadgeName, isDark && { color: theme.text }]}>Niveau {user?.level || 1}</Text>
+          <Text style={[styles.userBadgeXp, isDark && { color: theme.textSecondary }]}>{user?.xp || 0} XP</Text>
         </View>
       </View>
 

@@ -50,15 +50,41 @@ export const colors = {
   black: '#000000',
 };
 
-// Dark mode colors
-export const darkColors = {
+// Light mode semantic colors
+export const lightTheme = {
+  background: colors.gray[50],
+  surface: colors.white,
+  surfaceElevated: colors.white,
+  text: colors.gray[900],
+  textSecondary: colors.gray[500],
+  textMuted: colors.gray[400],
+  border: colors.gray[200],
+  borderLight: colors.gray[100],
+  card: colors.white,
+  input: colors.gray[50],
+  inputBorder: colors.gray[200],
+};
+
+// Dark mode semantic colors
+export const darkTheme = {
   background: '#0F172A',
   surface: '#1E293B',
   surfaceElevated: '#334155',
   text: '#F8FAFC',
   textSecondary: '#94A3B8',
+  textMuted: '#64748B',
   border: '#334155',
+  borderLight: '#1E293B',
+  card: '#1E293B',
+  input: '#1E293B',
+  inputBorder: '#334155',
 };
+
+// Legacy export for backwards compatibility
+export const darkColors = darkTheme;
+
+// Type for theme colors
+export type ThemeColors = typeof lightTheme;
 
 export const spacing = {
   xs: 4,

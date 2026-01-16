@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '../src/store/auth';
 import { syncService } from '../src/services/sync';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { useThemeStore } from '../src/store/theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -21,6 +22,7 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const { checkAuth } = useAuthStore();
+  const { isDark } = useThemeStore();
 
   useEffect(() => {
     const init = async () => {
@@ -43,7 +45,7 @@ export default function RootLayout() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <StatusBar style="auto" />
+          <StatusBar style={isDark ? 'light' : 'dark'} />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
