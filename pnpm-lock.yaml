@@ -319,6 +319,9 @@ importers:
       expo-crypto:
         specifier: ^15.0.8
         version: 15.0.8(expo@54.0.25)
+      expo-file-system:
+        specifier: ^19.0.21
+        version: 19.0.21(expo@54.0.25)(react-native@0.81.5)
       expo-image-picker:
         specifier: ~17.0.8
         version: 17.0.8(expo@54.0.25)
@@ -7171,8 +7174,8 @@ packages:
       expo: 54.0.25(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.15)(react-native@0.81.5)(react@19.1.0)
     dev: false
 
-  /expo-file-system@19.0.19(expo@54.0.25)(react-native@0.81.5):
-    resolution: {integrity: sha512-OrpOV4fEBFMFv+jy7PnENpPbsWoBmqWGidSwh1Ai52PLl6JIInYGfZTc6kqyPNGtFTwm7Y9mSWnE8g+dtLxu7g==}
+  /expo-file-system@19.0.21(expo@54.0.25)(react-native@0.81.5):
+    resolution: {integrity: sha512-s3DlrDdiscBHtab/6W1osrjGL+C2bvoInPJD7sOwmxfJ5Woynv2oc+Fz1/xVXaE/V7HE/+xrHC/H45tu6lZzzg==}
     peerDependencies:
       expo: '*'
       react-native: '*'
@@ -7450,7 +7453,7 @@ packages:
       babel-preset-expo: 54.0.7(@babel/core@7.28.5)(@babel/runtime@7.28.4)(expo@54.0.25)(react-refresh@0.14.2)
       expo-asset: 12.0.10(expo@54.0.25)(react-native@0.81.5)(react@19.1.0)
       expo-constants: 18.0.10(expo@54.0.25)(react-native@0.81.5)
-      expo-file-system: 19.0.19(expo@54.0.25)(react-native@0.81.5)
+      expo-file-system: 19.0.21(expo@54.0.25)(react-native@0.81.5)
       expo-font: 14.0.9(expo@54.0.25)(react-native@0.81.5)(react@19.1.0)
       expo-keep-awake: 15.0.7(expo@54.0.25)(react@19.1.0)
       expo-modules-autolinking: 3.0.22
