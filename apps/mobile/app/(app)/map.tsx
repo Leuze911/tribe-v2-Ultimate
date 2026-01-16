@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, TouchableOpacity, Text, ActivityIndicator, TextInput, StyleSheet, Platform, ScrollView, Dimensions, KeyboardAvoidingView, Alert, Modal } from 'react-native';
+import { View, TouchableOpacity, Text, ActivityIndicator, TextInput, StyleSheet, Platform, ScrollView, Dimensions, KeyboardAvoidingView, Alert, Modal, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -11,6 +11,7 @@ import { useOffline } from '../../src/hooks/useOffline';
 import { useDrawer } from './_layout';
 import { MapView } from '../../src/components/MapView';
 import { poisService } from '../../src/services/pois';
+import { mediaService, PhotoResult } from '../../src/services/media';
 import type { POI, Location as LocationType } from '../../src/types';
 
 // Check if running in Expo Go (BottomSheet has issues with reanimated in Expo Go)
@@ -60,6 +61,7 @@ export default function MapScreen() {
   const [poiName, setPoiName] = useState('');
   const [poiDescription, setPoiDescription] = useState('');
   const [poiCategory, setPoiCategory] = useState('restaurant');
+  const [poiPhotos, setPoiPhotos] = useState<string[]>([]);
   const [pois, setPois] = useState<POI[]>([]);
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
   const [locationPermission, setLocationPermission] = useState<boolean>(false);
@@ -177,6 +179,42 @@ export default function MapScreen() {
     cancelAddingPOI();
     setPoiName('');
     setPoiDescription('');
+    setPoiPhotos([]);
+  };
+
+  const handleAddPhoto = async () => {
+    Alert.alert(
+      'Ajouter une photo',
+      'Choisissez une source',
+      [
+        {
+          text: 'Appareil photo',
+          onPress: async () => {
+            const photo = await mediaService.takePhoto();
+            if (photo) {
+              setPoiPhotos([...poiPhotos, photo.uri]);
+            }
+          },
+        },
+        {
+          text: 'Galerie',
+          onPress: async () => {
+            const photo = await mediaService.pickImage();
+            if (photo) {
+              setPoiPhotos([...poiPhotos, photo.uri]);
+            }
+          },
+        },
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setPoiPhotos(poiPhotos.filter((_, i) => i !== index));
   };
 
   const renderBackdrop = useCallback(
@@ -407,6 +445,28 @@ export default function MapScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+
+              <Text style={styles.inputLabel}>Photos (optionnel)</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
+                {poiPhotos.map((uri, index) => (
+                  <View key={index} style={styles.photoPreview}>
+                    <Image source={{ uri }} style={styles.photoImage} />
+                    <TouchableOpacity
+                      style={styles.photoRemoveButton}
+                      onPress={() => handleRemovePhoto(index)}
+                    >
+                      <Ionicons name="close-circle" size={24} color={colors.red[500]} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <TouchableOpacity
+                  style={styles.addPhotoButton}
+                  onPress={handleAddPhoto}
+                >
+                  <Ionicons name="camera" size={32} color={colors.gray[400]} />
+                  <Text style={styles.addPhotoText}>Ajouter</Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
 
             <TouchableOpacity
@@ -928,5 +988,45 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '500',
     fontSize: fontSize.sm,
+  },
+
+  // Photos
+  photosScroll: {
+    marginTop: spacing.sm,
+  },
+  photoPreview: {
+    width: 100,
+    height: 100,
+    borderRadius: borderRadius.lg,
+    marginRight: spacing.sm,
+    position: 'relative',
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.lg,
+  },
+  photoRemoveButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+  },
+  addPhotoButton: {
+    width: 100,
+    height: 100,
+    borderRadius: borderRadius.lg,
+    borderWidth: 2,
+    borderColor: colors.gray[300],
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.gray[50],
+  },
+  addPhotoText: {
+    color: colors.gray[500],
+    fontSize: fontSize.xs,
+    marginTop: spacing.xs,
   },
 });

@@ -110,10 +110,10 @@ class MediaService {
   }
 
   /**
-   * Upload photo to MinIO
+   * Upload photo to MinIO via backend API
    * Returns the URL of the uploaded photo
    */
-  async uploadPhoto(photoUri: string, poiId: string): Promise<string> {
+  async uploadPhoto(photoUri: string): Promise<string> {
     try {
       console.log('📤 Uploading photo to MinIO...');
 
@@ -123,28 +123,37 @@ class MediaService {
         throw new Error('File does not exist');
       }
 
-      // Generate unique filename
-      const timestamp = Date.now();
-      const filename = `poi_${poiId}_${timestamp}.jpg`;
+      // Create form data
+      const formData = new FormData();
 
-      // For now, mock the MinIO upload
-      // TODO: Implement actual MinIO upload via backend API
-      const minioUrl = `${process.env.EXPO_PUBLIC_API_URL}/uploads/${filename}`;
+      // On mobile, we need to use the file URI
+      const filename = photoUri.split('/').pop() || 'photo.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-      // Mock: In production, this would be a multipart/form-data upload
-      // const formData = new FormData();
-      // formData.append('file', {
-      //   uri: photoUri,
-      //   name: filename,
-      //   type: 'image/jpeg',
-      // } as any);
-      //
-      // await axios.post('/api/v1/upload', formData, {
-      //   headers: { 'Content-Type': 'multipart/form-data' },
-      // });
+      formData.append('file', {
+        uri: photoUri,
+        name: filename,
+        type,
+      } as any);
 
-      console.log(`✅ Photo uploaded: ${minioUrl}`);
-      return minioUrl;
+      // Upload to backend
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${API_URL}/api/v1/upload/photo`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ Photo uploaded: ${data.url}`);
+      return data.url;
     } catch (error) {
       console.error('❌ Error uploading photo:', error);
       throw error;
