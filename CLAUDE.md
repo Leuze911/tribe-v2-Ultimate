@@ -1,6 +1,6 @@
 # TRIBE v2 - Context Claude
 
-**Last Updated**: 2026-01-16 23:30 UTC
+**Last Updated**: 2026-01-17 00:15 UTC
 **Mission**: Développer l'app mobile React Native jusqu'à parité fonctionnelle complète
 
 ---
@@ -23,13 +23,14 @@
 - **Routing**: Expo Router (file-based)
 
 ### Progression Globale
-- **28/35 features** (80%)
+- **31/35 features** (89%)
 - **See**: FEATURES_GAP.md for detailed breakdown
 - **P0 OFFLINE MODE**: Complete ✅
 - **P1 POI FEATURES**: Complete ✅
 - **P2 REWARDS**: Complete ✅
 - **P3 CHAT IA**: Complete ✅
 - **P4 TESTS E2E**: Complete ✅
+- **P5 PROFILE FEATURES**: Complete ✅
 
 ---
 
@@ -172,6 +173,18 @@
   - `offline-sync.yaml` - Platform-specific offline tests
 - Configuration: `e2e/config.yaml`
 - Run: `maestro test apps/mobile/e2e/flows/`
+
+### ✅ P5 - PROFILE FEATURES (COMPLETE)
+**Implemented**:
+- Edit profile screen with avatar upload ✅
+- Change password screen with validation ✅
+- Delete account with soft delete (deactivation) ✅
+- Backend endpoints:
+  - `PATCH /auth/profile` - Update profile (fullName, phone, avatarUrl)
+  - `POST /auth/change-password` - Change password with current password verification
+  - `DELETE /auth/account` - Soft delete account
+- Settings screen navigation to all profile actions ✅
+- Profile screen quick links to edit and settings ✅
 
 ---
 
