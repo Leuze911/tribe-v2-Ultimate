@@ -7,6 +7,7 @@ import * as Location from 'expo-location';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/utils/theme';
 import { useMapStore } from '../../src/store/map';
 import { useAuthStore } from '../../src/store/auth';
+import { useOffline } from '../../src/hooks/useOffline';
 import { useDrawer } from './_layout';
 import { MapView } from '../../src/components/MapView';
 import { poisService } from '../../src/services/pois';
@@ -52,6 +53,7 @@ export default function MapScreen() {
   const { openDrawer } = useDrawer();
   const { searchQuery, setSearchQuery, isAddingPOI, startAddingPOI, cancelAddingPOI, confirmPOILocation, newPOILocation, setUserLocation, userLocation } = useMapStore();
   const { user } = useAuthStore();
+  const { isOnline, syncStatus, isSyncing, createPOIOffline, getPendingCount } = useOffline();
 
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -132,13 +134,30 @@ export default function MapScreen() {
 
     setIsLoading(true);
     try {
-      await poisService.createPOI({
-        name: poiName,
-        description: poiDescription || undefined,
-        categoryId: poiCategory,
-        latitude: newPOILocation.latitude,
-        longitude: newPOILocation.longitude,
-      });
+      if (isOnline) {
+        // Try to create online first
+        await poisService.createPOI({
+          name: poiName,
+          description: poiDescription || undefined,
+          categoryId: poiCategory,
+          latitude: newPOILocation.latitude,
+          longitude: newPOILocation.longitude,
+        });
+        Alert.alert('Succès', `POI "${poiName}" créé avec succès!`);
+      } else {
+        // Save offline if no connection
+        await createPOIOffline({
+          name: poiName,
+          description: poiDescription || undefined,
+          categoryId: poiCategory,
+          latitude: newPOILocation.latitude,
+          longitude: newPOILocation.longitude,
+        });
+        Alert.alert(
+          'POI sauvegardé',
+          `"${poiName}" a été sauvegardé localement. Il sera synchronisé quand vous serez en ligne.`
+        );
+      }
 
       setIsLoading(false);
       poiFormSheetRef.current?.close();
@@ -146,7 +165,6 @@ export default function MapScreen() {
       setPoiDescription('');
       cancelAddingPOI();
 
-      Alert.alert('Succès', `POI "${poiName}" créé avec succès!`);
       loadPois(); // Reload POIs to show the new one
     } catch (error: any) {
       setIsLoading(false);
@@ -189,6 +207,27 @@ export default function MapScreen() {
         }}
         showUserLocation={locationPermission}
       />
+
+      {/* Offline Indicator Banner */}
+      {!isOnline && (
+        <View style={[styles.offlineBanner, { top: insets.top }]}>
+          <Ionicons name="cloud-offline" size={16} color={colors.white} />
+          <Text style={styles.offlineBannerText}>Mode hors ligne</Text>
+          {getPendingCount() > 0 && (
+            <View style={styles.pendingBadge}>
+              <Text style={styles.pendingBadgeText}>{getPendingCount()}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Syncing Indicator */}
+      {isOnline && isSyncing && (
+        <View style={[styles.syncingBanner, { top: insets.top }]}>
+          <ActivityIndicator size="small" color={colors.white} />
+          <Text style={styles.syncingBannerText}>Synchronisation...</Text>
+        </View>
+      )}
 
       {/* Floating Search Bar with Hamburger Menu */}
       <SafeAreaView style={styles.topFloatingUI} edges={['top']} pointerEvents="box-none">
@@ -827,5 +866,67 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: 'bold',
     fontSize: fontSize.base,
+  },
+
+  // Offline/Sync Indicators
+  offlineBanner: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gray[700],
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    gap: spacing.sm,
+    zIndex: 100,
+    ...Platform.select({
+      ios: shadows.md,
+      android: { elevation: 4 },
+      web: { boxShadow: '0 2px 8px rgba(0,0,0,0.15)' },
+    }),
+  },
+  offlineBannerText: {
+    color: colors.white,
+    fontWeight: '500',
+    fontSize: fontSize.sm,
+    flex: 1,
+  },
+  pendingBadge: {
+    backgroundColor: colors.yellow[500],
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  pendingBadgeText: {
+    color: colors.gray[900],
+    fontSize: fontSize.xs,
+    fontWeight: 'bold',
+  },
+  syncingBanner: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary[500],
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    gap: spacing.sm,
+    zIndex: 100,
+    ...Platform.select({
+      ios: shadows.md,
+      android: { elevation: 4 },
+      web: { boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)' },
+    }),
+  },
+  syncingBannerText: {
+    color: colors.white,
+    fontWeight: '500',
+    fontSize: fontSize.sm,
   },
 });

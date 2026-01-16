@@ -1,66 +1,149 @@
-import { useEffect, useState, useCallback } from 'react';
-import { offlineService, PendingPOI } from '../services/offline';
-import { POI } from '../types';
+/**
+ * TRIBE v2 - useOffline Hook
+ *
+ * React hook for offline functionality
+ * - Network status monitoring
+ * - Sync status
+ * - Offline POI management
+ */
+
+import { useEffect, useState } from 'react';
+import { syncService, SyncStatus } from '../services/sync';
+import { databaseService, OfflinePOI } from '../services/database';
 
 export function useOffline() {
-  const [isOnline, setIsOnline] = useState(offlineService.getIsOnline());
-  const [pendingCount, setPendingCount] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  const [offlinePOIs, setOfflinePOIs] = useState<OfflinePOI[]>([]);
+  const [syncStats, setSyncStats] = useState({
+    totalOfflinePOIs: 0,
+    pendingPOIs: 0,
+    syncedPOIs: 0,
+    errorPOIs: 0,
+    queuedItems: 0,
+    isOnline: true,
+    isSyncing: false,
+  });
 
+  /**
+   * Initialize and subscribe to sync status
+   */
   useEffect(() => {
-    const unsubscribe = offlineService.addNetworkListener(setIsOnline);
-    updatePendingCount();
-    return unsubscribe;
+    const unsubscribe = syncService.onSyncStatusChange((status) => {
+      setSyncStatus(status);
+    });
+
+    // Update online status periodically
+    const interval = setInterval(() => {
+      setIsOnline(syncService.isDeviceOnline());
+    }, 1000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
-  const updatePendingCount = useCallback(async () => {
-    const pending = await offlineService.getPendingPOIs();
-    setPendingCount(pending.length);
-  }, []);
-
-  const syncNow = useCallback(async () => {
-    if (!isOnline || isSyncing) return { success: 0, failed: 0 };
-
-    setIsSyncing(true);
+  /**
+   * Load offline POIs
+   */
+  const loadOfflinePOIs = async () => {
     try {
-      const result = await offlineService.syncPendingChanges();
-      await updatePendingCount();
-      return result;
-    } finally {
-      setIsSyncing(false);
+      const pois = await databaseService.getAllPOIs();
+      setOfflinePOIs(pois);
+    } catch (error) {
+      console.error('Failed to load offline POIs:', error);
     }
-  }, [isOnline, isSyncing, updatePendingCount]);
+  };
 
-  const cachePOIs = useCallback(async (pois: POI[]) => {
-    await offlineService.cachePOIs(pois);
-  }, []);
+  /**
+   * Load sync statistics
+   */
+  const loadSyncStats = async () => {
+    try {
+      const stats = await syncService.getSyncStats();
+      setSyncStats(stats);
+    } catch (error) {
+      console.error('Failed to load sync stats:', error);
+    }
+  };
 
-  const getCachedPOIs = useCallback(async () => {
-    return await offlineService.getCachedPOIs();
-  }, []);
+  /**
+   * Create POI offline
+   */
+  const createPOIOffline = async (
+    poi: Omit<OfflinePOI, 'id' | 'createdAt' | 'syncStatus'>
+  ): Promise<OfflinePOI> => {
+    try {
+      const savedPOI = await databaseService.insertPOI(poi);
+      await loadOfflinePOIs(); // Refresh list
+      await loadSyncStats(); // Refresh stats
 
-  const addPendingPOI = useCallback(
-    async (data: Partial<POI>, action: 'create' | 'update' | 'delete') => {
-      await offlineService.addPendingPOI(data, action);
-      await updatePendingCount();
-    },
-    [updatePendingCount],
-  );
+      // Trigger sync if online
+      if (isOnline) {
+        syncService.sync().catch(console.error);
+      }
 
-  const getLastSyncTime = useCallback(async () => {
-    return await offlineService.getLastSyncTime();
-  }, []);
+      return savedPOI;
+    } catch (error) {
+      console.error('Failed to create POI offline:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Force sync now
+   */
+  const triggerSync = async () => {
+    try {
+      await syncService.forceSyncNow();
+      await loadOfflinePOIs();
+      await loadSyncStats();
+    } catch (error) {
+      console.error('Failed to trigger sync:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Get pending POIs count
+   */
+  const getPendingCount = () => {
+    return offlinePOIs.filter((poi) => poi.syncStatus === 'pending').length;
+  };
+
+  /**
+   * Clear all offline data (for testing/reset)
+   */
+  const clearOfflineData = async () => {
+    try {
+      await databaseService.clearAll();
+      await loadOfflinePOIs();
+      await loadSyncStats();
+    } catch (error) {
+      console.error('Failed to clear offline data:', error);
+      throw error;
+    }
+  };
 
   return {
+    // Status
     isOnline,
-    pendingCount,
-    isSyncing,
-    syncNow,
-    cachePOIs,
-    getCachedPOIs,
-    addPendingPOI,
-    getLastSyncTime,
+    syncStatus,
+    isSyncing: syncStats.isSyncing,
+
+    // Data
+    offlinePOIs,
+    syncStats,
+
+    // Actions
+    createPOIOffline,
+    triggerSync,
+    loadOfflinePOIs,
+    loadSyncStats,
+    clearOfflineData,
+
+    // Utilities
+    getPendingCount,
   };
 }
-
-export default useOffline;
