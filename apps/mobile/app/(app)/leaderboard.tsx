@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,59 +11,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/utils/theme';
-import { useAuthStore } from '../../src/store/auth';
-import api from '../../src/services/api';
+import { colors, spacing, borderRadius, fontSize } from '../../src/utils/theme';
+import { useLeaderboard } from '../../src/hooks/useRewards';
+import { LeaderboardEntry } from '../../src/services/rewards';
 
-interface LeaderboardEntry {
-  id: string;
-  rank: number;
-  fullName: string;
-  email: string;
-  points: number;
-  level: number;
-  avatarUrl?: string;
-}
+type PeriodType = 'all_time' | 'monthly' | 'weekly';
 
 export default function LeaderboardScreen() {
-  const { user } = useAuthStore();
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [period, setPeriod] = useState<PeriodType>('all_time');
+  const { data: leaderboardData, isLoading, refetch } = useLeaderboard(period, 50);
   const [refreshing, setRefreshing] = useState(false);
-  const [period, setPeriod] = useState<'all' | 'month' | 'week'>('all');
 
-  const fetchLeaderboard = async () => {
-    try {
-      // For demo, we'll create mock data since the endpoint doesn't exist yet
-      const mockData: LeaderboardEntry[] = [
-        { id: '1', rank: 1, fullName: 'Moussa Diop', email: 'moussa@tribe.sn', points: 2500, level: 6 },
-        { id: '2', rank: 2, fullName: 'Fatou Sow', email: 'fatou@tribe.sn', points: 2100, level: 6 },
-        { id: '3', rank: 3, fullName: 'Ibrahima Ndiaye', email: 'ibra@tribe.sn', points: 1850, level: 5 },
-        { id: '4', rank: 4, fullName: 'Aminata Fall', email: 'aminata@tribe.sn', points: 1500, level: 5 },
-        { id: '5', rank: 5, fullName: 'Ousmane Diallo', email: 'ousmane@tribe.sn', points: 1200, level: 4 },
-        { id: '6', rank: 6, fullName: 'Aissatou Ba', email: 'aissatou@tribe.sn', points: 980, level: 4 },
-        { id: '7', rank: 7, fullName: 'Mamadou Sy', email: 'mamadou@tribe.sn', points: 750, level: 3 },
-        { id: '8', rank: 8, fullName: 'Mariama Dieng', email: 'mariama@tribe.sn', points: 620, level: 3 },
-        { id: '9', rank: 9, fullName: 'Cheikh Kane', email: 'cheikh@tribe.sn', points: 450, level: 2 },
-        { id: '10', rank: 10, fullName: 'Rokhaya Gueye', email: 'rokhaya@tribe.sn', points: 320, level: 2 },
-      ];
-      setLeaderboard(mockData);
-    } catch (error) {
-      console.error('Error fetching leaderboard:', error);
-    } finally {
-      setIsLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchLeaderboard();
-  }, [period]);
-
-  const onRefresh = () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    fetchLeaderboard();
-  };
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  const leaderboard = leaderboardData?.entries || [];
+  const currentUserRank = leaderboardData?.currentUserRank;
 
   const getRankColor = (rank: number) => {
     if (rank === 1) return colors.yellow[500];
@@ -77,12 +43,11 @@ export default function LeaderboardScreen() {
     return 'ribbon';
   };
 
-  const renderItem = ({ item, index }: { item: LeaderboardEntry; index: number }) => {
-    const isCurrentUser = user?.id === item.id;
+  const renderItem = ({ item }: { item: LeaderboardEntry }) => {
     const isTopThree = item.rank <= 3;
 
     return (
-      <View style={[styles.rankItem, isCurrentUser && styles.currentUserItem]}>
+      <View style={[styles.rankItem, item.isCurrentUser && styles.currentUserItem]}>
         <View style={styles.rankBadge}>
           {isTopThree ? (
             <View style={[styles.trophyBadge, { backgroundColor: getRankColor(item.rank) }]}>
@@ -95,7 +60,7 @@ export default function LeaderboardScreen() {
 
         <View style={styles.avatarContainer}>
           <View style={[styles.avatar, isTopThree && styles.topThreeAvatar]}>
-            <Text style={styles.avatarText}>{item.fullName.charAt(0)}</Text>
+            <Text style={styles.avatarText}>{item.username.charAt(0).toUpperCase()}</Text>
           </View>
           <View style={styles.levelBadge}>
             <Text style={styles.levelText}>{item.level}</Text>
@@ -103,11 +68,14 @@ export default function LeaderboardScreen() {
         </View>
 
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{item.fullName}</Text>
-          <Text style={styles.userPoints}>{item.points.toLocaleString()} pts</Text>
+          <Text style={styles.userName}>{item.username}</Text>
+          <View style={styles.statsRow}>
+            <Text style={styles.userPoints}>{item.points.toLocaleString()} pts</Text>
+            <Text style={styles.poiCount}>{item.poisCount} POIs</Text>
+          </View>
         </View>
 
-        {isCurrentUser && (
+        {item.isCurrentUser && (
           <View style={styles.youBadge}>
             <Text style={styles.youBadgeText}>Vous</Text>
           </View>
@@ -120,14 +88,18 @@ export default function LeaderboardScreen() {
     <View style={styles.headerContent}>
       {/* Period Selector */}
       <View style={styles.periodSelector}>
-        {(['all', 'month', 'week'] as const).map((p) => (
+        {([
+          { key: 'all_time', label: 'Global' },
+          { key: 'monthly', label: 'Ce mois' },
+          { key: 'weekly', label: 'Cette semaine' },
+        ] as const).map((p) => (
           <TouchableOpacity
-            key={p}
-            style={[styles.periodButton, period === p && styles.periodButtonActive]}
-            onPress={() => setPeriod(p)}
+            key={p.key}
+            style={[styles.periodButton, period === p.key && styles.periodButtonActive]}
+            onPress={() => setPeriod(p.key)}
           >
-            <Text style={[styles.periodButtonText, period === p && styles.periodButtonTextActive]}>
-              {p === 'all' ? 'Global' : p === 'month' ? 'Ce mois' : 'Cette semaine'}
+            <Text style={[styles.periodButtonText, period === p.key && styles.periodButtonTextActive]}>
+              {p.label}
             </Text>
           </TouchableOpacity>
         ))}
@@ -139,45 +111,80 @@ export default function LeaderboardScreen() {
           {/* 2nd Place */}
           <View style={styles.podiumItem}>
             <View style={[styles.podiumAvatar, styles.podiumSecond]}>
-              <Text style={styles.podiumAvatarText}>{leaderboard[1].fullName.charAt(0)}</Text>
+              <Text style={styles.podiumAvatarText}>{leaderboard[1].username.charAt(0).toUpperCase()}</Text>
             </View>
             <View style={[styles.podiumBar, styles.podiumBarSecond]}>
               <Ionicons name="trophy" size={20} color={colors.gray[400]} />
               <Text style={styles.podiumRank}>2</Text>
             </View>
-            <Text style={styles.podiumName} numberOfLines={1}>{leaderboard[1].fullName}</Text>
-            <Text style={styles.podiumPoints}>{leaderboard[1].points}</Text>
+            <Text style={styles.podiumName} numberOfLines={1}>{leaderboard[1].username}</Text>
+            <Text style={styles.podiumPoints}>{leaderboard[1].points.toLocaleString()}</Text>
           </View>
 
           {/* 1st Place */}
           <View style={styles.podiumItem}>
             <View style={[styles.podiumAvatar, styles.podiumFirst]}>
-              <Text style={styles.podiumAvatarText}>{leaderboard[0].fullName.charAt(0)}</Text>
+              <Text style={styles.podiumAvatarText}>{leaderboard[0].username.charAt(0).toUpperCase()}</Text>
             </View>
             <View style={[styles.podiumBar, styles.podiumBarFirst]}>
               <Ionicons name="trophy" size={24} color={colors.yellow[500]} />
               <Text style={styles.podiumRank}>1</Text>
             </View>
-            <Text style={styles.podiumName} numberOfLines={1}>{leaderboard[0].fullName}</Text>
-            <Text style={styles.podiumPoints}>{leaderboard[0].points}</Text>
+            <Text style={styles.podiumName} numberOfLines={1}>{leaderboard[0].username}</Text>
+            <Text style={styles.podiumPoints}>{leaderboard[0].points.toLocaleString()}</Text>
           </View>
 
           {/* 3rd Place */}
           <View style={styles.podiumItem}>
             <View style={[styles.podiumAvatar, styles.podiumThird]}>
-              <Text style={styles.podiumAvatarText}>{leaderboard[2].fullName.charAt(0)}</Text>
+              <Text style={styles.podiumAvatarText}>{leaderboard[2].username.charAt(0).toUpperCase()}</Text>
             </View>
             <View style={[styles.podiumBar, styles.podiumBarThird]}>
               <Ionicons name="trophy" size={18} color="#CD7F32" />
               <Text style={styles.podiumRank}>3</Text>
             </View>
-            <Text style={styles.podiumName} numberOfLines={1}>{leaderboard[2].fullName}</Text>
-            <Text style={styles.podiumPoints}>{leaderboard[2].points}</Text>
+            <Text style={styles.podiumName} numberOfLines={1}>{leaderboard[2].username}</Text>
+            <Text style={styles.podiumPoints}>{leaderboard[2].points.toLocaleString()}</Text>
           </View>
         </View>
       )}
 
-      <Text style={styles.listTitle}>Classement complet</Text>
+      {/* Current user rank if not in top */}
+      {currentUserRank && currentUserRank.rank > 10 && (
+        <View style={styles.currentUserSection}>
+          <Text style={styles.currentUserLabel}>Votre position</Text>
+          <View style={[styles.rankItem, styles.currentUserItem, styles.currentUserCard]}>
+            <View style={styles.rankBadge}>
+              <Text style={styles.rankNumber}>{currentUserRank.rank}</Text>
+            </View>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{currentUserRank.username.charAt(0).toUpperCase()}</Text>
+              </View>
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelText}>{currentUserRank.level}</Text>
+              </View>
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{currentUserRank.username}</Text>
+              <View style={styles.statsRow}>
+                <Text style={styles.userPoints}>{currentUserRank.points.toLocaleString()} pts</Text>
+                <Text style={styles.poiCount}>{currentUserRank.poisCount} POIs</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+      <Text style={styles.listTitle}>Classement complet ({leaderboardData?.totalUsers || 0} joueurs)</Text>
+    </View>
+  );
+
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="people-outline" size={64} color={colors.gray[300]} />
+      <Text style={styles.emptyText}>Aucun joueur dans le classement</Text>
+      <Text style={styles.emptySubtext}>Soyez le premier a contribuer!</Text>
     </View>
   );
 
@@ -192,16 +199,18 @@ export default function LeaderboardScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      {isLoading ? (
+      {isLoading && !refreshing ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary[500]} />
+          <Text style={styles.loadingText}>Chargement du classement...</Text>
         </View>
       ) : (
         <FlatList
           data={leaderboard}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.userId}
           ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmpty}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary[500]} />
@@ -242,6 +251,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    color: colors.gray[500],
+    fontSize: fontSize.base,
   },
   headerContent: {
     paddingBottom: spacing.lg,
@@ -348,6 +362,19 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     marginTop: spacing.xs,
   },
+  currentUserSection: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+  },
+  currentUserLabel: {
+    fontSize: fontSize.sm,
+    color: colors.gray[500],
+    marginBottom: spacing.sm,
+  },
+  currentUserCard: {
+    borderRadius: borderRadius.lg,
+    marginHorizontal: 0,
+  },
   listTitle: {
     fontSize: fontSize.lg,
     fontWeight: 'bold',
@@ -434,10 +461,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.gray[900],
   },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
   userPoints: {
     fontSize: fontSize.sm,
     color: colors.gray[500],
-    marginTop: 2,
+  },
+  poiCount: {
+    fontSize: fontSize.xs,
+    color: colors.gray[400],
+    marginLeft: spacing.md,
   },
   youBadge: {
     backgroundColor: colors.primary[500],
@@ -449,5 +485,20 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: fontSize.xs,
     fontWeight: 'bold',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing['3xl'],
+  },
+  emptyText: {
+    fontSize: fontSize.lg,
+    color: colors.gray[500],
+    marginTop: spacing.lg,
+  },
+  emptySubtext: {
+    fontSize: fontSize.sm,
+    color: colors.gray[400],
+    marginTop: spacing.sm,
   },
 });

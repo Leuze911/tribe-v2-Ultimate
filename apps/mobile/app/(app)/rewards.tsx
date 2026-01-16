@@ -1,23 +1,73 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useAuthStore } from '../../src/store/auth';
+import { useState, useCallback } from 'react';
+import { useRewards } from '../../src/hooks/useRewards';
+import { Badge } from '../../src/services/rewards';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/utils/theme';
 
-const REWARDS = [
-  { id: '1', name: 'Explorateur', description: 'Creez votre premier POI', icon: 'compass', xpRequired: 0 },
-  { id: '2', name: 'Decouvreur', description: 'Creez 5 POI', icon: 'search', xpRequired: 50 },
-  { id: '3', name: 'Voyageur', description: 'Creez 10 POI', icon: 'airplane', xpRequired: 100 },
-  { id: '4', name: 'Cartographe', description: 'Creez 25 POI', icon: 'map', xpRequired: 250 },
-  { id: '5', name: 'Guide Local', description: 'Atteignez le niveau 5', icon: 'trophy', xpRequired: 500 },
-  { id: '6', name: 'Expert', description: 'Atteignez le niveau 10', icon: 'star', xpRequired: 1000 },
-];
+const TIER_COLORS = {
+  bronze: colors.orange[400],
+  silver: colors.gray[400],
+  gold: colors.yellow[500],
+  platinum: colors.purple[400],
+};
+
+const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
+  compass: 'compass',
+  'map-pin': 'location',
+  navigation: 'navigate',
+  map: 'map',
+  award: 'ribbon',
+  star: 'star',
+  'trending-up': 'trending-up',
+  trophy: 'trophy',
+  flag: 'flag',
+  camera: 'camera',
+  calendar: 'calendar',
+  utensils: 'restaurant',
+};
 
 export default function RewardsScreen() {
-  const { user } = useAuthStore();
-  const userXP = user?.xp || 0;
-  const earnedCount = REWARDS.filter((r) => userXP >= r.xpRequired).length;
+  const { data: rewardsData, isLoading, error, refetch } = useRewards();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  const getIcon = (iconName: string): keyof typeof Ionicons.glyphMap => {
+    return ICON_MAP[iconName] || 'ribbon';
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.gray[700]} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Recompenses</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary[500]} />
+          <Text style={styles.loadingText}>Chargement des recompenses...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const badges = rewardsData?.badges || [];
+  const earnedCount = rewardsData?.earnedBadges || 0;
+  const totalBadges = rewardsData?.totalBadges || 0;
+  const currentXp = rewardsData?.currentXp || 0;
+  const currentLevel = rewardsData?.currentLevel || 1;
+  const xpToNextLevel = rewardsData?.xpToNextLevel || 100;
+  const progressToNext = currentXp / (currentXp + xpToNextLevel) * 100;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -29,13 +79,18 @@ export default function RewardsScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View style={styles.progressCard}>
           <View style={styles.progressRow}>
             <View>
-              <Text style={styles.progressLabel}>Progression</Text>
-              <Text style={styles.progressValue}>{earnedCount}/{REWARDS.length}</Text>
-              <Text style={styles.progressSubtext}>recompenses obtenues</Text>
+              <Text style={styles.progressLabel}>Niveau {currentLevel}</Text>
+              <Text style={styles.progressValue}>{earnedCount}/{totalBadges}</Text>
+              <Text style={styles.progressSubtext}>badges obtenus</Text>
             </View>
             <View style={styles.trophyCircle}>
               <Ionicons name="trophy" size={40} color={colors.yellow[500]} />
@@ -44,46 +99,77 @@ export default function RewardsScreen() {
           <View style={styles.xpProgress}>
             <View style={styles.xpLabels}>
               <Text style={styles.xpLabel}>XP Total</Text>
-              <Text style={styles.xpValue}>{userXP} XP</Text>
+              <Text style={styles.xpValue}>{currentXp} XP</Text>
             </View>
             <View style={styles.xpBar}>
-              <View style={[styles.xpFill, { width: `${Math.min((userXP / 2500) * 100, 100)}%` }]} />
+              <View style={[styles.xpFill, { width: `${Math.min(progressToNext, 100)}%` }]} />
             </View>
+            <Text style={styles.xpNextLevel}>{xpToNextLevel} XP pour le niveau suivant</Text>
           </View>
         </View>
 
+        {error && (
+          <View style={styles.errorCard}>
+            <Ionicons name="warning" size={24} color={colors.red[500]} />
+            <Text style={styles.errorText}>Erreur de chargement. Tirez pour rafraichir.</Text>
+          </View>
+        )}
+
         <View style={styles.rewardsSection}>
-          <Text style={styles.sectionTitle}>Toutes les recompenses</Text>
+          <Text style={styles.sectionTitle}>Tous les badges</Text>
           <View style={styles.rewardsGrid}>
-            {REWARDS.map((reward) => {
-              const isEarned = userXP >= reward.xpRequired;
-              return (
-                <View key={reward.id} style={[styles.rewardCard, isEarned && styles.rewardCardEarned]}>
-                  <View style={[styles.rewardIcon, isEarned && styles.rewardIconEarned]}>
-                    <Ionicons
-                      name={reward.icon as any}
-                      size={28}
-                      color={isEarned ? colors.yellow[600] : colors.gray[400]}
-                    />
-                  </View>
-                  <Text style={[styles.rewardName, !isEarned && styles.rewardNameLocked]}>{reward.name}</Text>
-                  <Text style={[styles.rewardDesc, !isEarned && styles.rewardDescLocked]}>{reward.description}</Text>
-                  <View style={styles.rewardStatus}>
-                    {isEarned ? (
-                      <>
-                        <Ionicons name="checkmark-circle" size={16} color={colors.primary[500]} />
-                        <Text style={styles.earnedText}>Obtenu</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Ionicons name="lock-closed" size={14} color={colors.gray[400]} />
-                        <Text style={styles.lockedText}>{reward.xpRequired} XP requis</Text>
-                      </>
-                    )}
-                  </View>
+            {badges.map((badge: Badge) => (
+              <View key={badge.id} style={[styles.rewardCard, badge.isEarned && styles.rewardCardEarned]}>
+                <View style={[
+                  styles.rewardIcon,
+                  badge.isEarned && styles.rewardIconEarned,
+                  badge.isEarned && { backgroundColor: `${TIER_COLORS[badge.tier]}20` }
+                ]}>
+                  <Ionicons
+                    name={getIcon(badge.icon)}
+                    size={28}
+                    color={badge.isEarned ? TIER_COLORS[badge.tier] : colors.gray[400]}
+                  />
                 </View>
-              );
-            })}
+                <View style={[styles.tierBadge, { backgroundColor: TIER_COLORS[badge.tier] }]}>
+                  <Text style={styles.tierText}>{badge.tier.toUpperCase()}</Text>
+                </View>
+                <Text style={[styles.rewardName, !badge.isEarned && styles.rewardNameLocked]}>
+                  {badge.name}
+                </Text>
+                <Text style={[styles.rewardDesc, !badge.isEarned && styles.rewardDescLocked]}>
+                  {badge.description}
+                </Text>
+                {!badge.isEarned && badge.progress > 0 && (
+                  <View style={styles.progressBarContainer}>
+                    <View style={[styles.progressBarFill, { width: `${badge.progress}%` }]} />
+                    <Text style={styles.progressText}>{badge.progress}%</Text>
+                  </View>
+                )}
+                <View style={styles.rewardStatus}>
+                  {badge.isEarned ? (
+                    <>
+                      <Ionicons name="checkmark-circle" size={16} color={colors.primary[500]} />
+                      <Text style={styles.earnedText}>Obtenu</Text>
+                      {badge.xpReward > 0 && (
+                        <Text style={styles.xpRewardText}>+{badge.xpReward} XP</Text>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="lock-closed" size={14} color={colors.gray[400]} />
+                      <Text style={styles.lockedText}>
+                        {badge.poisRequired > 0
+                          ? `${badge.poisRequired} POIs requis`
+                          : badge.xpRequired > 0
+                            ? `${badge.xpRequired} XP requis`
+                            : 'Verrouillee'}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              </View>
+            ))}
           </View>
         </View>
       </ScrollView>
@@ -119,6 +205,30 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   content: { flex: 1 },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    color: colors.gray[500],
+    fontSize: fontSize.base,
+  },
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.red[50],
+    margin: spacing.lg,
+    marginTop: 0,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+  },
+  errorText: {
+    color: colors.red[700],
+    marginLeft: spacing.sm,
+    flex: 1,
+  },
   progressCard: {
     backgroundColor: colors.primary[500],
     margin: spacing.lg,
@@ -173,6 +283,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: borderRadius.full
   },
+  xpNextLevel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: fontSize.xs,
+    marginTop: spacing.sm,
+    textAlign: 'right',
+  },
   rewardsSection: { padding: spacing.lg },
   sectionTitle: {
     fontSize: fontSize.lg,
@@ -190,6 +306,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray[100],
     borderRadius: borderRadius['2xl'],
     padding: spacing.lg,
+    position: 'relative',
   },
   rewardCardEarned: {
     backgroundColor: colors.white,
@@ -209,6 +326,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   rewardIconEarned: { backgroundColor: colors.yellow[100] },
+  tierBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  tierText: {
+    color: colors.white,
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
   rewardName: {
     fontWeight: 'bold',
     color: colors.gray[900],
@@ -221,6 +351,26 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs
   },
   rewardDescLocked: { color: colors.gray[400] },
+  progressBarContainer: {
+    height: 6,
+    backgroundColor: colors.gray[200],
+    borderRadius: borderRadius.full,
+    marginTop: spacing.sm,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: colors.primary[400],
+    borderRadius: borderRadius.full,
+  },
+  progressText: {
+    position: 'absolute',
+    right: 0,
+    top: -14,
+    fontSize: 10,
+    color: colors.gray[500],
+  },
   rewardStatus: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -231,6 +381,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: '600',
     marginLeft: spacing.xs
+  },
+  xpRewardText: {
+    color: colors.yellow[600],
+    fontSize: fontSize.xs,
+    fontWeight: '600',
+    marginLeft: 'auto',
   },
   lockedText: {
     color: colors.gray[400],

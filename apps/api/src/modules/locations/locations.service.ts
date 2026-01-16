@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
@@ -20,6 +21,8 @@ import {
   QueryLocationDto,
 } from './dto';
 import { PaginatedResponse } from './interfaces';
+import { RewardsService } from '../rewards/rewards.service';
+import { ChallengeAction } from '../rewards/entities/challenge.entity';
 
 @Injectable()
 export class LocationsService {
@@ -35,6 +38,8 @@ export class LocationsService {
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     private readonly configService: ConfigService,
+    @Inject(forwardRef(() => RewardsService))
+    private readonly rewardsService: RewardsService,
   ) {}
 
   async create(userId: string, dto: CreateLocationDto): Promise<Location> {
@@ -59,6 +64,18 @@ export class LocationsService {
 
     // Invalidate list caches
     await this.invalidateListCache();
+
+    // Update challenge progress and check badges
+    try {
+      await this.rewardsService.updateChallengeProgress(
+        userId,
+        ChallengeAction.CREATE_POI,
+        dto.category,
+      );
+      await this.rewardsService.checkAndAwardBadges(userId);
+    } catch (error) {
+      this.logger.warn(`Failed to update rewards for user ${userId}: ${error.message}`);
+    }
 
     this.logger.log(`Location ${saved.id} created successfully`);
     return this.findOne(saved.id);
@@ -273,6 +290,17 @@ export class LocationsService {
         'points',
         pointsToAward,
       );
+
+      // Update challenge progress and check badges
+      try {
+        await this.rewardsService.updateChallengeProgress(
+          location.collectorId,
+          ChallengeAction.VALIDATE_POI,
+        );
+        await this.rewardsService.checkAndAwardBadges(location.collectorId);
+      } catch (error) {
+        this.logger.warn(`Failed to update rewards for user ${location.collectorId}: ${error.message}`);
+      }
     }
 
     // Invalidate caches
@@ -282,7 +310,7 @@ export class LocationsService {
     return this.findOne(id);
   }
 
-  async addPhotos(id: string, photoUrls: string[]): Promise<Location> {
+  async addPhotos(id: string, photoUrls: string[], userId?: string): Promise<Location> {
     const location = await this.findOne(id);
 
     const updatedPhotos = [...(location.photos || []), ...photoUrls];
@@ -291,6 +319,21 @@ export class LocationsService {
       photos: updatedPhotos,
       updatedAt: new Date(),
     });
+
+    // Update challenge progress for photos
+    const ownerId = userId || location.collectorId;
+    if (ownerId) {
+      try {
+        for (let i = 0; i < photoUrls.length; i++) {
+          await this.rewardsService.updateChallengeProgress(
+            ownerId,
+            ChallengeAction.ADD_PHOTO,
+          );
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to update photo challenge for user ${ownerId}: ${error.message}`);
+      }
+    }
 
     // Invalidate cache
     await this.cacheManager.del(`${this.CACHE_PREFIX}${id}`);

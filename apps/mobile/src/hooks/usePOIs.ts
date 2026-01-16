@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import poisService, { GetPOIsParams } from '../services/pois';
 import type { CreatePOIData } from '../types';
 import { useMapStore } from '../store/map';
+import { rewardsService } from '../services/rewards';
+import { notificationService } from '../services/notifications';
 
 export function usePOIs(params?: GetPOIsParams) {
   const { userLocation, selectedCategoryId, searchQuery } = useMapStore();
@@ -49,9 +51,23 @@ export function useCreatePOI() {
 
   return useMutation({
     mutationFn: (data: CreatePOIData) => poisService.createPOI(data),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['pois'] });
       queryClient.invalidateQueries({ queryKey: ['myPOIs'] });
+      queryClient.invalidateQueries({ queryKey: ['rewards'] });
+      queryClient.invalidateQueries({ queryKey: ['challenges'] });
+
+      // Check for new badges and notify
+      try {
+        const { newBadges } = await rewardsService.checkBadges();
+        if (newBadges && newBadges.length > 0) {
+          for (const badge of newBadges) {
+            await notificationService.notifyRewardEarned(badge.name);
+          }
+        }
+      } catch (error) {
+        console.log('Failed to check badges:', error);
+      }
     },
   });
 }

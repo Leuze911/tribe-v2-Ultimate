@@ -36,6 +36,13 @@ export class QueryLocationDto {
   collectorId?: string;
 
   @ApiPropertyOptional({
+    description: 'Search term (name, description, address)',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({
     description: 'Page number',
     default: 1,
     minimum: 1,

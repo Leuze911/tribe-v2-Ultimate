@@ -19,6 +19,7 @@ import {
 import { LocationsModule } from './modules/locations/locations.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { RewardsModule } from './modules/rewards/rewards.module';
 
 // Infrastructure
 import { UploadModule } from './common/upload/upload.module';
@@ -92,6 +93,7 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
     AuthModule,
     LocationsModule,
     ChatModule,
+    RewardsModule,
   ],
   controllers: [HealthController],
   providers: [
