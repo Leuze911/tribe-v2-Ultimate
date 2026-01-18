@@ -40,15 +40,20 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
+    console.log('🔐 handleLogin called', { email: email.trim(), hasPassword: !!password });
+
     if (!email.trim() || !password.trim()) {
       Alert.alert('Erreur', 'Veuillez remplir tous les champs');
       return;
     }
 
     try {
+      console.log('🔐 Calling login...');
       await login(email.trim(), password);
+      console.log('🔐 Login successful, navigating to map...');
       router.replace('/(app)/map');
-    } catch (err) {
+    } catch (err: any) {
+      console.error('🔐 Login failed:', err?.message || err);
       Alert.alert('Erreur', 'Email ou mot de passe incorrect');
     }
   };

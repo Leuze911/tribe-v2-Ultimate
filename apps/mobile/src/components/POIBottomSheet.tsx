@@ -1,109 +1,163 @@
 import { forwardRef, useCallback, useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Dimensions, StyleSheet } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
+  StyleSheet,
+  Platform,
+  Modal,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import type { POI } from '../types';
+
+// Check if running in Expo Go or Web (BottomSheet has issues with reanimated)
+const isExpoGo = Constants.appOwnership === 'expo';
+const isWeb = Platform.OS === 'web';
+const useNativeBottomSheet = !isExpoGo && !isWeb;
+
+// Conditionally import BottomSheet only if on native
+let BottomSheet: any = null;
+let BottomSheetBackdrop: any = null;
+let BottomSheetScrollView: any = null;
+
+if (useNativeBottomSheet) {
+  try {
+    const bottomSheetModule = require('@gorhom/bottom-sheet');
+    BottomSheet = bottomSheetModule.default;
+    BottomSheetBackdrop = bottomSheetModule.BottomSheetBackdrop;
+    BottomSheetScrollView = bottomSheetModule.BottomSheetScrollView;
+  } catch (e) {
+    console.log('BottomSheet not available');
+  }
+}
 
 interface POIBottomSheetProps {
   poi: POI | null;
   onClose: () => void;
   onNavigate?: (poi: POI) => void;
+  visible?: boolean;
 }
 
 const { width } = Dimensions.get('window');
 
-export const POIBottomSheet = forwardRef<BottomSheet, POIBottomSheetProps>(
-  ({ poi, onClose, onNavigate }, ref) => {
+// Modal fallback for Web/Expo Go
+const ModalFallback = ({
+  visible,
+  onClose,
+  children,
+}: {
+  visible?: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) => (
+  <Modal
+    visible={visible}
+    animationType="slide"
+    presentationStyle="pageSheet"
+    onRequestClose={onClose}
+  >
+    <View style={styles.modalContainer}>
+      <View style={styles.modalHandle} />
+      <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+        {children}
+      </ScrollView>
+    </View>
+  </Modal>
+);
+
+export const POIBottomSheet = forwardRef<any, POIBottomSheetProps>(
+  ({ poi, onClose, onNavigate, visible = false }, ref) => {
     const snapPoints = useMemo(() => ['40%', '80%'], []);
 
     const renderBackdrop = useCallback(
-      (props: any) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.3} />
-      ),
+      (props: any) =>
+        BottomSheetBackdrop ? (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.3} />
+        ) : null,
       []
     );
 
     if (!poi) return null;
 
-    return (
-      <BottomSheet
-        ref={ref}
-        index={-1}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        onClose={onClose}
-        backgroundStyle={{ borderRadius: 24 }}
-        handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40 }}
-      >
-        <BottomSheetScrollView contentContainerStyle={{ paddingBottom: 32 }}>
-          {/* Images */}
-          {poi.images && poi.images.length > 0 && (
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              style={styles.imageScroll}
-            >
-              {poi.images.map((image, index) => (
-                <Image
-                  key={index}
-                  source={{ uri: image }}
-                  style={[styles.image, { width: width - 32 }]}
-                  resizeMode="cover"
-                />
-              ))}
-            </ScrollView>
-          )}
+    const detailContent = (
+      <>
+        {/* Images */}
+        {poi.images && poi.images.length > 0 && (
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.imageScroll}
+          >
+            {poi.images.map((image, index) => (
+              <Image
+                key={index}
+                source={{ uri: image }}
+                style={[styles.image, { width: width - 32 }]}
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
+        )}
 
-          <View style={styles.content}>
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <Text style={styles.title}>{poi.name}</Text>
-                <View style={styles.metaRow}>
+        <View style={styles.content}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.title}>{poi.name}</Text>
+              <View style={styles.metaRow}>
+                {poi.category && (
                   <View
-                    style={[styles.categoryBadge, { backgroundColor: poi.category.color + '20' }]}
+                    style={[
+                      styles.categoryBadge,
+                      { backgroundColor: (poi.category.color || '#10b981') + '20' },
+                    ]}
                   >
-                    <Text style={[styles.categoryText, { color: poi.category.color }]}>
+                    <Text style={[styles.categoryText, { color: poi.category.color || '#10b981' }]}>
                       {poi.category.name}
                     </Text>
                   </View>
-                  {poi.distance && (
-                    <Text style={styles.distanceText}>
-                      {poi.distance < 1000
-                        ? `${Math.round(poi.distance)}m`
-                        : `${(poi.distance / 1000).toFixed(1)}km`}
-                    </Text>
-                  )}
-                </View>
-              </View>
-
-              {/* Rating */}
-              {poi.rating && (
-                <View style={styles.ratingBadge}>
-                  <Ionicons name="star" size={16} color="#F59E0B" />
-                  <Text style={styles.ratingValue}>
-                    {poi.rating.toFixed(1)}
+                )}
+                {poi.distance && (
+                  <Text style={styles.distanceText}>
+                    {poi.distance < 1000
+                      ? `${Math.round(poi.distance)}m`
+                      : `${(poi.distance / 1000).toFixed(1)}km`}
                   </Text>
-                  <Text style={styles.ratingCount}>({poi.totalRatings})</Text>
-                </View>
-              )}
+                )}
+              </View>
             </View>
 
-            {/* Description */}
-            {poi.description && (
-              <Text style={styles.description}>{poi.description}</Text>
+            {/* Close button for modal */}
+            {!useNativeBottomSheet && (
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
             )}
 
-            {/* Author */}
+            {/* Rating */}
+            {poi.rating && (
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={16} color="#F59E0B" />
+                <Text style={styles.ratingValue}>{poi.rating.toFixed(1)}</Text>
+                <Text style={styles.ratingCount}>({poi.totalRatings})</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Description */}
+          {poi.description && <Text style={styles.description}>{poi.description}</Text>}
+
+          {/* Author */}
+          {poi.author && (
             <View style={styles.authorContainer}>
               <View style={styles.authorAvatar}>
                 {poi.author.avatar ? (
-                  <Image
-                    source={{ uri: poi.author.avatar }}
-                    style={styles.authorAvatarImage}
-                  />
+                  <Image source={{ uri: poi.author.avatar }} style={styles.authorAvatarImage} />
                 ) : (
                   <Ionicons name="person" size={20} color="#4F46E5" />
                 )}
@@ -120,24 +174,48 @@ export const POIBottomSheet = forwardRef<BottomSheet, POIBottomSheetProps>(
                 </Text>
               </View>
             </View>
+          )}
 
-            {/* Actions */}
-            <View style={styles.actionsRow}>
-              <TouchableOpacity
-                style={styles.navigateButton}
-                onPress={() => onNavigate?.(poi)}
-              >
-                <Ionicons name="navigate" size={20} color="#ffffff" />
-                <Text style={styles.navigateText}>Y aller</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconButton}>
-                <Ionicons name="share-outline" size={24} color="#4B5563" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconButton}>
-                <Ionicons name="bookmark-outline" size={24} color="#4B5563" />
-              </TouchableOpacity>
-            </View>
+          {/* Actions */}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.navigateButton} onPress={() => onNavigate?.(poi)}>
+              <Ionicons name="navigate" size={20} color="#ffffff" />
+              <Text style={styles.navigateText}>Y aller</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton}>
+              <Ionicons name="share-outline" size={24} color="#4B5563" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton}>
+              <Ionicons name="bookmark-outline" size={24} color="#4B5563" />
+            </TouchableOpacity>
           </View>
+        </View>
+      </>
+    );
+
+    // Use Modal fallback for Web/Expo Go
+    if (!useNativeBottomSheet || !BottomSheet) {
+      return (
+        <ModalFallback visible={visible} onClose={onClose}>
+          {detailContent}
+        </ModalFallback>
+      );
+    }
+
+    // Use native BottomSheet
+    return (
+      <BottomSheet
+        ref={ref}
+        index={-1}
+        snapPoints={snapPoints}
+        enablePanDownToClose
+        backdropComponent={renderBackdrop}
+        onClose={onClose}
+        backgroundStyle={{ borderRadius: 24 }}
+        handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40 }}
+      >
+        <BottomSheetScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+          {detailContent}
         </BottomSheetScrollView>
       </BottomSheet>
     );
@@ -268,6 +346,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  // Modal fallback styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#D1D5DB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  modalContent: {
+    paddingBottom: 32,
   },
 });
 

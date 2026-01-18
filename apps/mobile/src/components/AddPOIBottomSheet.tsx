@@ -9,21 +9,72 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
+  Platform,
+  Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import Constants from 'expo-constants';
 import { useCategories, useCreatePOI, useUploadImage } from '../hooks/usePOIs';
 import type { Location, Category } from '../types';
+
+// Check if running in Expo Go or Web (BottomSheet has issues with reanimated)
+const isExpoGo = Constants.appOwnership === 'expo';
+const isWeb = Platform.OS === 'web';
+const useNativeBottomSheet = !isExpoGo && !isWeb;
+
+// Conditionally import BottomSheet only if on native
+let BottomSheet: any = null;
+let BottomSheetBackdrop: any = null;
+let BottomSheetScrollView: any = null;
+
+if (useNativeBottomSheet) {
+  try {
+    const bottomSheetModule = require('@gorhom/bottom-sheet');
+    BottomSheet = bottomSheetModule.default;
+    BottomSheetBackdrop = bottomSheetModule.BottomSheetBackdrop;
+    BottomSheetScrollView = bottomSheetModule.BottomSheetScrollView;
+  } catch (e) {
+    console.log('BottomSheet not available');
+  }
+}
 
 interface AddPOIBottomSheetProps {
   location: Location | null;
   onClose: () => void;
   onSuccess: () => void;
+  visible?: boolean;
 }
 
-export const AddPOIBottomSheet = forwardRef<BottomSheet, AddPOIBottomSheetProps>(
-  ({ location, onClose, onSuccess }, ref) => {
+// Modal fallback for Web/Expo Go
+const ModalFallback = ({ visible, location, onClose, onSuccess, children }: {
+  visible?: boolean;
+  location: Location | null;
+  onClose: () => void;
+  onSuccess: () => void;
+  children: React.ReactNode;
+}) => (
+  <Modal
+    visible={visible}
+    animationType="slide"
+    presentationStyle="pageSheet"
+    onRequestClose={onClose}
+  >
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.modalContainer}
+    >
+      <View style={styles.modalHandle} />
+      <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+        {children}
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </Modal>
+);
+
+export const AddPOIBottomSheet = forwardRef<any, AddPOIBottomSheetProps>(
+  ({ location, onClose, onSuccess, visible = false }, ref) => {
     const snapPoints = useMemo(() => ['90%'], []);
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -37,9 +88,10 @@ export const AddPOIBottomSheet = forwardRef<BottomSheet, AddPOIBottomSheetProps>
     const isSubmitting = createPOI.isPending || uploadImage.isPending;
 
     const renderBackdrop = useCallback(
-      (props: any) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
-      ),
+      (props: any) =>
+        BottomSheetBackdrop ? (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
+        ) : null,
       []
     );
 
@@ -125,6 +177,153 @@ export const AddPOIBottomSheet = forwardRef<BottomSheet, AddPOIBottomSheetProps>
       setImages([]);
     };
 
+    const formContent = (
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Nouveau POI</Text>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={24} color="#6B7280" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Location Info */}
+        {location && (
+          <View style={styles.locationInfo}>
+            <Ionicons name="location" size={20} color="#4F46E5" />
+            <Text style={styles.locationText}>
+              {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+            </Text>
+          </View>
+        )}
+
+        {/* Name */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>
+            Nom du lieu <Text style={styles.required}>*</Text>
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: Café de la Paix"
+            placeholderTextColor="#9CA3AF"
+            value={name}
+            onChangeText={setName}
+          />
+        </View>
+
+        {/* Description */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Description</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Décrivez ce lieu..."
+            placeholderTextColor="#9CA3AF"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+        </View>
+
+        {/* Category */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>
+            Catégorie <Text style={styles.required}>*</Text>
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.categoryRow}>
+              {categories?.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.categoryChip,
+                    selectedCategory?.id === category.id
+                      ? styles.categoryChipSelected
+                      : styles.categoryChipUnselected,
+                  ]}
+                  onPress={() => setSelectedCategory(category)}
+                >
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      selectedCategory?.id === category.id
+                        ? styles.categoryChipTextSelected
+                        : styles.categoryChipTextUnselected,
+                    ]}
+                  >
+                    {category.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Images */}
+        <View style={styles.inputGroupLarge}>
+          <Text style={styles.label}>Photos</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.imageRow}>
+              {/* Add buttons */}
+              <TouchableOpacity style={styles.addImageButton} onPress={takePhoto}>
+                <Ionicons name="camera" size={28} color="#9CA3AF" />
+                <Text style={styles.addImageText}>Photo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
+                <Ionicons name="images" size={28} color="#9CA3AF" />
+                <Text style={styles.addImageText}>Galerie</Text>
+              </TouchableOpacity>
+
+              {/* Preview images */}
+              {images.map((uri, index) => (
+                <View key={index} style={styles.imagePreviewContainer}>
+                  <Image source={{ uri }} style={styles.imagePreview} resizeMode="cover" />
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={() => removeImage(index)}
+                  >
+                    <Ionicons name="close" size={14} color="#ffffff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Submit */}
+        <TouchableOpacity
+          style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <View style={styles.submitButtonContent}>
+              <Ionicons name="add-circle" size={20} color="#ffffff" />
+              <Text style={styles.submitButtonText}>Créer le POI</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+
+    // Use Modal fallback for Web/Expo Go
+    if (!useNativeBottomSheet || !BottomSheet) {
+      return (
+        <ModalFallback
+          visible={visible}
+          location={location}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        >
+          {formContent}
+        </ModalFallback>
+      );
+    }
+
+    // Use native BottomSheet
     return (
       <BottomSheet
         ref={ref}
@@ -140,135 +339,7 @@ export const AddPOIBottomSheet = forwardRef<BottomSheet, AddPOIBottomSheetProps>
         handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40 }}
       >
         <BottomSheetScrollView contentContainerStyle={{ paddingBottom: 32 }}>
-          <View style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Nouveau POI</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Location Info */}
-            {location && (
-              <View style={styles.locationInfo}>
-                <Ionicons name="location" size={20} color="#4F46E5" />
-                <Text style={styles.locationText}>
-                  {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-                </Text>
-              </View>
-            )}
-
-            {/* Name */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Nom du lieu <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Café de la Paix"
-                placeholderTextColor="#9CA3AF"
-                value={name}
-                onChangeText={setName}
-              />
-            </View>
-
-            {/* Description */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Description</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Décrivez ce lieu..."
-                placeholderTextColor="#9CA3AF"
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-            </View>
-
-            {/* Category */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Catégorie <Text style={styles.required}>*</Text>
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.categoryRow}>
-                  {categories?.map((category) => (
-                    <TouchableOpacity
-                      key={category.id}
-                      style={[
-                        styles.categoryChip,
-                        selectedCategory?.id === category.id
-                          ? styles.categoryChipSelected
-                          : styles.categoryChipUnselected,
-                      ]}
-                      onPress={() => setSelectedCategory(category)}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryChipText,
-                          selectedCategory?.id === category.id
-                            ? styles.categoryChipTextSelected
-                            : styles.categoryChipTextUnselected,
-                        ]}
-                      >
-                        {category.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-
-            {/* Images */}
-            <View style={styles.inputGroupLarge}>
-              <Text style={styles.label}>Photos</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.imageRow}>
-                  {/* Add buttons */}
-                  <TouchableOpacity style={styles.addImageButton} onPress={takePhoto}>
-                    <Ionicons name="camera" size={28} color="#9CA3AF" />
-                    <Text style={styles.addImageText}>Photo</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
-                    <Ionicons name="images" size={28} color="#9CA3AF" />
-                    <Text style={styles.addImageText}>Galerie</Text>
-                  </TouchableOpacity>
-
-                  {/* Preview images */}
-                  {images.map((uri, index) => (
-                    <View key={index} style={styles.imagePreviewContainer}>
-                      <Image source={{ uri }} style={styles.imagePreview} resizeMode="cover" />
-                      <TouchableOpacity
-                        style={styles.removeImageButton}
-                        onPress={() => removeImage(index)}
-                      >
-                        <Ionicons name="close" size={14} color="#ffffff" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-
-            {/* Submit */}
-            <TouchableOpacity
-              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <View style={styles.submitButtonContent}>
-                  <Ionicons name="add-circle" size={20} color="#ffffff" />
-                  <Text style={styles.submitButtonText}>Créer le POI</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+          {formContent}
         </BottomSheetScrollView>
       </BottomSheet>
     );
@@ -413,6 +484,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 18,
+  },
+  // Modal fallback styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#D1D5DB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  modalContent: {
+    paddingBottom: 32,
   },
 });
 

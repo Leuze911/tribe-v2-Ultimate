@@ -15,6 +15,7 @@ export function useOffline() {
   const [isOnline, setIsOnline] = useState(true);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [offlinePOIs, setOfflinePOIs] = useState<OfflinePOI[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [syncStats, setSyncStats] = useState({
     totalOfflinePOIs: 0,
     pendingPOIs: 0,
@@ -26,9 +27,39 @@ export function useOffline() {
   });
 
   /**
-   * Initialize and subscribe to sync status
+   * Initialize sync service and database
    */
   useEffect(() => {
+    let mounted = true;
+
+    const initialize = async () => {
+      try {
+        await syncService.init();
+        if (mounted) {
+          setIsInitialized(true);
+        }
+      } catch (error) {
+        console.error('Failed to initialize sync service:', error);
+        // Still mark as initialized to prevent infinite loading
+        if (mounted) {
+          setIsInitialized(true);
+        }
+      }
+    };
+
+    initialize();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  /**
+   * Subscribe to sync status after initialization
+   */
+  useEffect(() => {
+    if (!isInitialized) return;
+
     const unsubscribe = syncService.onSyncStatusChange((status) => {
       setSyncStatus(status);
       // Reload data when sync status changes
@@ -51,12 +82,13 @@ export function useOffline() {
       unsubscribe();
       clearInterval(interval);
     };
-  }, []);
+  }, [isInitialized]);
 
   /**
    * Load offline POIs
    */
   const loadOfflinePOIs = async () => {
+    if (!isInitialized) return;
     try {
       const pois = await databaseService.getAllPOIs();
       setOfflinePOIs(pois);
@@ -69,6 +101,7 @@ export function useOffline() {
    * Load sync statistics
    */
   const loadSyncStats = async () => {
+    if (!isInitialized) return;
     try {
       const stats = await syncService.getSyncStats();
       setSyncStats(stats);

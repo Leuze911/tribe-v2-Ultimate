@@ -19,7 +19,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: false, // Start with false so UI is usable immediately
   error: null,
 
   login: async (email: string, password: string) => {

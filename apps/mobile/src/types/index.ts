@@ -1,15 +1,17 @@
 export interface User {
   id: string;
   email: string;
-  username: string;
-  displayName?: string;
-  avatar?: string;
+  fullName?: string;       // API field (was displayName)
+  phone?: string;
+  avatarUrl?: string;      // API field (was avatar)
+  role: 'collector' | 'validator' | 'admin';
+  points: number;          // API field (was xp)
   level: number;
-  xp: number;
-  xpToNextLevel: number;
-  totalPois: number;
-  badges: Badge[];
   createdAt: string;
+  // Computed/optional fields for UI (populated by other API calls)
+  xpToNextLevel?: number;
+  totalPois?: number;
+  badges?: Badge[];
 }
 
 export interface Badge {
@@ -60,7 +62,7 @@ export interface CreatePOIData {
 
 export interface AuthTokens {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;  // Optional - backend doesn't provide it
 }
 
 export interface LoginCredentials {

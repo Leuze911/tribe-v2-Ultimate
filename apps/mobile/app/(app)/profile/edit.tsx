@@ -26,9 +26,9 @@ import { mediaService } from '../../../src/services/media';
 
 export default function EditProfileScreen() {
   const { user, setUser } = useAuthStore();
-  const [fullName, setFullName] = useState(user?.displayName || user?.username || '');
-  const [phone, setPhone] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || '');
+  const [fullName, setFullName] = useState(user?.fullName || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
@@ -49,8 +49,9 @@ export default function EditProfileScreen() {
       // Update local state
       setUser({
         ...user!,
-        displayName: updatedUser.fullName || undefined,
-        avatar: avatarUrl || undefined,
+        fullName: updatedUser.fullName || undefined,
+        phone: updatedUser.phone || undefined,
+        avatarUrl: updatedUser.avatarUrl || undefined,
       });
 
       Alert.alert('Succès', 'Profil mis à jour avec succès');

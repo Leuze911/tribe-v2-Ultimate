@@ -1,0 +1,19 @@
+ test_result 
+-------------
+           1
+(1 row)
+
+   table_name    
+-----------------
+ profiles
+ locations
+ rewards
+ support_tickets
+ user_badges
+ badges
+ user_challenges
+ challenges
+ chat_sessions
+ chat_messages
+(10 rows)
+

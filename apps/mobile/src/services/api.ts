@@ -1,7 +1,43 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import * as SecureStore from 'expo-secure-store';
-import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+
+// Cross-platform token storage helper
+const getToken = async (key: string): Promise<string | null> => {
+  try {
+    if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
+      return localStorage.getItem(key);
+    }
+    return await AsyncStorage.getItem(key);
+  } catch (e) {
+    console.error('Error getting token:', e);
+    return null;
+  }
+};
+
+const setToken = async (key: string, value: string): Promise<void> => {
+  try {
+    if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, value);
+    } else {
+      await AsyncStorage.setItem(key, value);
+    }
+  } catch (e) {
+    console.error('Error setting token:', e);
+  }
+};
+
+const removeToken = async (key: string): Promise<void> => {
+  try {
+    if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
+      localStorage.removeItem(key);
+    } else {
+      await AsyncStorage.removeItem(key);
+    }
+  } catch (e) {
+    console.error('Error removing token:', e);
+  }
+};
 
 // Get the API URL from environment variable
 const API_URL = `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1`;
@@ -44,7 +80,7 @@ api.interceptors.response.use(
 // Request interceptor to add auth token
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    const token = await SecureStore.getItemAsync('accessToken');
+    const token = await getToken('accessToken');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -53,42 +89,17 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle token refresh
+// Response interceptor to handle 401 errors
+// Note: Backend uses 24h tokens without refresh - on 401, user must re-login
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = await SecureStore.getItemAsync('refreshToken');
-        if (!refreshToken) {
-          throw new Error('No refresh token');
-        }
-
-        const response = await axios.post(`${API_URL}/auth/refresh`, {
-          refreshToken,
-        });
-
-        const { accessToken, refreshToken: newRefreshToken } = response.data;
-
-        await SecureStore.setItemAsync('accessToken', accessToken);
-        await SecureStore.setItemAsync('refreshToken', newRefreshToken);
-
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        }
-
-        return api(originalRequest);
-      } catch (refreshError) {
-        await SecureStore.deleteItemAsync('accessToken');
-        await SecureStore.deleteItemAsync('refreshToken');
-        return Promise.reject(refreshError);
-      }
+    if (error.response?.status === 401) {
+      // Token expired or invalid - clear tokens
+      // The app will detect this and redirect to login
+      await removeToken('accessToken');
+      console.log('🔐 Token invalid/expired - cleared');
     }
-
     return Promise.reject(error);
   }
 );

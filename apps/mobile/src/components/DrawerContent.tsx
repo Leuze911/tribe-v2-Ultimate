@@ -38,7 +38,9 @@ export default function DrawerContent({ closeDrawer }: DrawerContentProps) {
     router.replace('/(auth)/login');
   };
 
-  const xpProgress = user ? (user.xp / user.xpToNextLevel) * 100 : 0;
+  // XP to next level: level * 100 (simple formula)
+  const xpToNextLevel = user?.xpToNextLevel ?? (user?.level ?? 1) * 100;
+  const xpProgress = user ? (user.points / xpToNextLevel) * 100 : 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -53,19 +55,19 @@ export default function DrawerContent({ closeDrawer }: DrawerContentProps) {
           </View>
         </View>
 
-        <Text style={styles.userName}>{user?.displayName || 'Utilisateur'}</Text>
+        <Text style={styles.userName}>{user?.fullName || 'Utilisateur'}</Text>
         <Text style={styles.userEmail}>{user?.email || 'email@exemple.com'}</Text>
 
         {/* XP Progress Bar */}
         <View style={styles.xpContainer}>
           <View style={styles.xpInfo}>
-            <Text style={styles.xpText}>{user?.xp || 0} XP</Text>
+            <Text style={styles.xpText}>{user?.points || 0} XP</Text>
             <Text style={styles.xpNextLevel}>Niveau {(user?.level || 1) + 1}</Text>
           </View>
           <View style={styles.xpBarBackground}>
             <View style={[styles.xpBarFill, { width: `${xpProgress}%` }]} />
           </View>
-          <Text style={styles.xpRemaining}>{(user?.xpToNextLevel || 100) - (user?.xp || 0)} XP restants</Text>
+          <Text style={styles.xpRemaining}>{xpToNextLevel - (user?.points || 0)} XP restants</Text>
         </View>
 
         {/* Stats */}

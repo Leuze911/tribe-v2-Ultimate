@@ -8,11 +8,20 @@
  * - Background sync with expo-background-fetch
  */
 
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
-import * as TaskManager from 'expo-task-manager';
-import * as BackgroundFetch from 'expo-background-fetch';
+import { Platform } from 'react-native';
 import { databaseService, OfflinePOI, SyncQueueItem } from './database';
 import { poisService } from './pois';
+
+// Conditional imports for native-only modules
+let NetInfo: any = null;
+let TaskManager: any = null;
+let BackgroundFetch: any = null;
+
+if (Platform.OS !== 'web') {
+  NetInfo = require('@react-native-community/netinfo').default;
+  TaskManager = require('expo-task-manager');
+  BackgroundFetch = require('expo-background-fetch');
+}
 
 const SYNC_TASK_NAME = 'background-sync';
 
@@ -32,28 +41,49 @@ class SyncService {
   async init(): Promise<void> {
     console.log('🔄 Initializing sync service...');
 
-    // Initialize database
+    // Skip database init on web (use localStorage fallback)
+    if (Platform.OS === 'web') {
+      console.log('📱 Web platform detected, using simplified sync');
+      // Setup online/offline listeners for web
+      if (typeof window !== 'undefined') {
+        window.addEventListener('online', () => {
+          this.isOnline = true;
+          console.log('📡 Network status: ONLINE');
+        });
+        window.addEventListener('offline', () => {
+          this.isOnline = false;
+          console.log('📡 Network status: OFFLINE');
+        });
+        this.isOnline = navigator.onLine;
+      }
+      console.log('✅ Sync service initialized (web mode)');
+      return;
+    }
+
+    // Initialize database (native only)
     await databaseService.init();
 
-    // Setup network listener
-    NetInfo.addEventListener((state: NetInfoState) => {
-      const wasOnline = this.isOnline;
+    // Setup network listener (native only)
+    if (NetInfo) {
+      NetInfo.addEventListener((state: any) => {
+        const wasOnline = this.isOnline;
+        this.isOnline = state.isConnected === true && state.isInternetReachable === true;
+
+        console.log(`📡 Network status: ${this.isOnline ? 'ONLINE' : 'OFFLINE'}`);
+
+        // Trigger sync when coming back online
+        if (!wasOnline && this.isOnline) {
+          console.log('✅ Back online, triggering sync...');
+          this.sync().catch(console.error);
+        }
+      });
+
+      // Get initial network status
+      const state = await NetInfo.fetch();
       this.isOnline = state.isConnected === true && state.isInternetReachable === true;
+    }
 
-      console.log(`📡 Network status: ${this.isOnline ? 'ONLINE' : 'OFFLINE'}`);
-
-      // Trigger sync when coming back online
-      if (!wasOnline && this.isOnline) {
-        console.log('✅ Back online, triggering sync...');
-        this.sync().catch(console.error);
-      }
-    });
-
-    // Get initial network status
-    const state = await NetInfo.fetch();
-    this.isOnline = state.isConnected === true && state.isInternetReachable === true;
-
-    // Register background sync task
+    // Register background sync task (native only)
     await this.registerBackgroundSync();
 
     console.log('✅ Sync service initialized');
@@ -63,6 +93,12 @@ class SyncService {
    * Register background sync task
    */
   private async registerBackgroundSync(): Promise<void> {
+    // Skip on web
+    if (Platform.OS === 'web' || !TaskManager || !BackgroundFetch) {
+      console.log('⏭️ Background sync not available on this platform');
+      return;
+    }
+
     try {
       // Define the background task
       TaskManager.defineTask(SYNC_TASK_NAME, async () => {

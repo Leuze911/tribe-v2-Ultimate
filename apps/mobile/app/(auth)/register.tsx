@@ -78,6 +78,7 @@ export default function RegisterScreen() {
                     value={username}
                     onChangeText={setUsername}
                     autoCapitalize="none"
+                    testID="username-input"
                   />
                 </View>
               </View>
@@ -94,6 +95,7 @@ export default function RegisterScreen() {
                     onChangeText={setEmail}
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    testID="register-email-input"
                   />
                 </View>
               </View>
@@ -110,6 +112,7 @@ export default function RegisterScreen() {
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
+                    testID="register-password-input"
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                     <Ionicons
@@ -133,6 +136,7 @@ export default function RegisterScreen() {
                     onChangeText={setConfirmPassword}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
+                    testID="register-confirm-password-input"
                   />
                 </View>
               </View>
@@ -141,6 +145,7 @@ export default function RegisterScreen() {
                 style={[styles.button, isLoading && styles.buttonDisabled]}
                 onPress={handleRegister}
                 disabled={isLoading}
+                testID="register-button"
               >
                 {isLoading ? (
                   <ActivityIndicator color={colors.white} />
