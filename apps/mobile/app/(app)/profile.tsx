@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../src/store/auth';
-import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/utils/theme';
+import { colors, spacing, borderRadius, fontSize, shadows, platformShadow } from '../../src/utils/theme';
 import { useTheme } from '../../src/hooks/useTheme';
 
 export default function ProfileScreen() {
@@ -13,7 +13,7 @@ export default function ProfileScreen() {
   const stats = [
     { label: 'POI crees', value: user?.totalPois || 0, icon: 'location' },
     { label: 'Niveau', value: user?.level || 1, icon: 'star' },
-    { label: 'XP Total', value: user?.xp || 0, icon: 'flash' },
+    { label: 'XP Total', value: user?.points || 0, icon: 'flash' },
   ];
 
   const handleLogout = async () => {
@@ -43,16 +43,16 @@ export default function ProfileScreen() {
               <Text style={styles.levelBadgeText}>{user?.level || 1}</Text>
             </View>
           </View>
-          <Text style={[styles.userName, isDark && { color: theme.text }]}>{user?.displayName || user?.username || 'Utilisateur'}</Text>
-          <Text style={[styles.userHandle, isDark && { color: theme.textSecondary }]}>@{user?.username || 'user'}</Text>
+          <Text style={[styles.userName, isDark && { color: theme.text }]}>{user?.fullName || 'Utilisateur'}</Text>
+          <Text style={[styles.userHandle, isDark && { color: theme.textSecondary }]}>{user?.email}</Text>
 
           <View style={styles.xpContainer}>
             <View style={styles.xpLabels}>
               <Text style={styles.xpLevelText}>Niveau {user?.level || 1}</Text>
-              <Text style={[styles.xpValueText, isDark && { color: theme.textSecondary }]}>{user?.xp || 0} / {user?.xpToNextLevel || 100} XP</Text>
+              <Text style={[styles.xpValueText, isDark && { color: theme.textSecondary }]}>{user?.points || 0} / {user?.xpToNextLevel || (user?.level || 1) * 100} XP</Text>
             </View>
             <View style={[styles.xpBar, isDark && { backgroundColor: theme.border }]}>
-              <View style={[styles.xpFill, { width: `${((user?.xp || 0) / (user?.xpToNextLevel || 100)) * 100}%` }]} />
+              <View style={[styles.xpFill, { width: `${((user?.points || 0) / (user?.xpToNextLevel || (user?.level || 1) * 100)) * 100}%` }]} />
             </View>
           </View>
         </View>
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.lg,
       android: { elevation: 8 },
       web: { boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)' },
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     marginTop: spacing.sm,
     paddingVertical: spacing.lg,
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.sm,
       android: { elevation: 2 },
     }),

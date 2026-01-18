@@ -5,7 +5,13 @@
  * Architecture decision: expo-sqlite for performance and native integration
  */
 
-import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
+
+// Conditional import for SQLite (not available on web)
+let SQLite: any = null;
+if (Platform.OS !== 'web') {
+  SQLite = require('expo-sqlite');
+}
 
 // Database schema version for migrations
 const DB_VERSION = 1;
@@ -36,12 +42,24 @@ export interface SyncQueueItem {
 }
 
 class DatabaseService {
-  private db: SQLite.SQLiteDatabase | null = null;
+  private db: any = null;
+  private isWeb: boolean = Platform.OS === 'web';
 
   /**
    * Initialize database and create tables
    */
   async init(): Promise<void> {
+    // Skip SQLite on web - use in-memory/localStorage fallback
+    if (this.isWeb) {
+      console.log('📦 Web platform detected, using in-memory storage');
+      return;
+    }
+
+    if (!SQLite) {
+      console.log('⚠️ SQLite not available');
+      return;
+    }
+
     try {
       this.db = await SQLite.openDatabaseAsync(DB_NAME);
 
@@ -156,11 +174,11 @@ class DatabaseService {
   async getAllPOIs(): Promise<OfflinePOI[]> {
     if (!this.db) throw new Error('Database not initialized');
 
-    const rows = await this.db.getAllAsync<OfflinePOI>(
+    const rows = await this.db.getAllAsync(
       'SELECT * FROM pois ORDER BY createdAt DESC'
-    );
+    ) as OfflinePOI[];
 
-    return rows.map(row => ({
+    return rows.map((row: OfflinePOI) => ({
       ...row,
       photos: row.photos ? JSON.parse(row.photos as unknown as string) : undefined,
     }));
@@ -172,12 +190,12 @@ class DatabaseService {
   async getPendingPOIs(): Promise<OfflinePOI[]> {
     if (!this.db) throw new Error('Database not initialized');
 
-    const rows = await this.db.getAllAsync<OfflinePOI>(
+    const rows = await this.db.getAllAsync(
       'SELECT * FROM pois WHERE syncStatus = ? ORDER BY createdAt ASC',
       ['pending']
-    );
+    ) as OfflinePOI[];
 
-    return rows.map(row => ({
+    return rows.map((row: OfflinePOI) => ({
       ...row,
       photos: row.photos ? JSON.parse(row.photos as unknown as string) : undefined,
     }));
@@ -239,9 +257,9 @@ class DatabaseService {
   async getSyncQueue(): Promise<SyncQueueItem[]> {
     if (!this.db) throw new Error('Database not initialized');
 
-    const rows = await this.db.getAllAsync<SyncQueueItem>(
+    const rows = await this.db.getAllAsync(
       'SELECT * FROM sync_queue WHERE attempts < 5 ORDER BY createdAt ASC LIMIT 10'
-    );
+    ) as SyncQueueItem[];
 
     return rows;
   }

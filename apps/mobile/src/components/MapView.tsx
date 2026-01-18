@@ -118,7 +118,7 @@ export function MapView({ pois, onPOIPress, onMapPress, showUserLocation = true 
             anchor={{ x: 0.5, y: 1 }}
           >
             <View
-              style={[styles.marker, { backgroundColor: poi.category.color }]}
+              style={[styles.marker, { backgroundColor: poi.category?.color || '#10B981' }]}
               onTouchEnd={() => onPOIPress(poi)}
             >
               <View style={styles.markerInner} />

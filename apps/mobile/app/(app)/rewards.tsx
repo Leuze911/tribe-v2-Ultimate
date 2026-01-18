@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { useRewards } from '../../src/hooks/useRewards';
 import { Badge } from '../../src/services/rewards';
-import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/utils/theme';
+import { colors, spacing, borderRadius, fontSize, shadows, platformShadow } from '../../src/utils/theme';
 
 const TIER_COLORS = {
   bronze: colors.orange[400],
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     margin: spacing.lg,
     borderRadius: borderRadius['2xl'],
     padding: spacing['2xl'],
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.lg,
       android: { elevation: 8 },
       web: { boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)' },
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   },
   rewardCardEarned: {
     backgroundColor: colors.white,
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.md,
       android: { elevation: 4 },
       web: { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },

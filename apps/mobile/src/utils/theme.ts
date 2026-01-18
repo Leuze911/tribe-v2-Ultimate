@@ -36,15 +36,33 @@ export const colors = {
     900: '#111827',
   },
   red: {
+    50: '#FEF2F2',
     100: '#FEE2E2',
     500: '#EF4444',
     600: '#DC2626',
+    700: '#B91C1C',
   },
   yellow: {
     100: '#FEF3C7',
     500: '#F59E0B',
     600: '#D97706',
     700: '#B45309',
+  },
+  orange: {
+    100: '#FFEDD5',
+    200: '#FED7AA',
+    300: '#FDBA74',
+    400: '#FB923C',
+    500: '#F97316',
+    600: '#EA580C',
+  },
+  purple: {
+    100: '#F3E8FF',
+    200: '#E9D5FF',
+    300: '#D8B4FE',
+    400: '#C084FC',
+    500: '#A855F7',
+    600: '#9333EA',
   },
   white: '#FFFFFF',
   black: '#000000',
@@ -145,4 +163,39 @@ export const shadows = {
     shadowRadius: 24,
     elevation: 12,
   },
+};
+
+// Cross-platform shadow helper (works on iOS, Android, and Web)
+import { Platform, ViewStyle } from 'react-native';
+
+type ShadowLevel = 'sm' | 'md' | 'lg' | 'xl';
+
+const webShadows: Record<ShadowLevel, string> = {
+  sm: '0 1px 2px rgba(0,0,0,0.05)',
+  md: '0 2px 8px rgba(0,0,0,0.12)',
+  lg: '0 4px 12px rgba(0,0,0,0.15)',
+  xl: '0 8px 24px rgba(0,0,0,0.2)',
+};
+
+export const getShadow = (level: ShadowLevel): ViewStyle => {
+  if (Platform.OS === 'web') {
+    return { boxShadow: webShadows[level] } as ViewStyle;
+  }
+  return shadows[level];
+};
+
+// Helper for cross-platform shadows in StyleSheet (typed to allow different shapes)
+type PlatformShadowConfig = {
+  ios?: ViewStyle;
+  android?: ViewStyle;
+  web?: Record<string, any>;
+};
+
+export const platformShadow = (config: PlatformShadowConfig): ViewStyle => {
+  return Platform.select({
+    ios: config.ios,
+    android: config.android,
+    web: config.web,
+    default: {},
+  }) as ViewStyle;
 };

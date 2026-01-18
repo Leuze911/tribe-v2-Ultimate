@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Location from 'expo-location';
-import { colors, spacing, borderRadius, fontSize, shadows } from '../../src/utils/theme';
+import { colors, spacing, borderRadius, fontSize, shadows, platformShadow } from '../../src/utils/theme';
 import { useMapStore } from '../../src/store/map';
 import { useAuthStore } from '../../src/store/auth';
 import { useOffline } from '../../src/hooks/useOffline';
@@ -143,8 +143,8 @@ export default function MapScreen() {
   };
 
   // Bottom sheet refs
-  const poiFormSheetRef = useRef<BottomSheet>(null);
-  const poiDetailSheetRef = useRef<BottomSheet>(null);
+  const poiFormSheetRef = useRef<any>(null);
+  const poiDetailSheetRef = useRef<any>(null);
 
   // Bottom sheet snap points
   const formSnapPoints = useMemo(() => ['50%', '85%'], []);
@@ -152,6 +152,20 @@ export default function MapScreen() {
 
   const handleAddPOI = () => {
     startAddingPOI();
+  };
+
+  const handleLocateUser = async () => {
+    try {
+      const location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      Alert.alert('Position', `Lat: ${location.coords.latitude.toFixed(4)}\nLon: ${location.coords.longitude.toFixed(4)}`);
+    } catch (error) {
+      console.log('Error getting location:', error);
+      Alert.alert('Erreur', 'Impossible de récupérer votre position');
+    }
   };
 
   const handleConfirmLocation = () => {
@@ -416,6 +430,7 @@ export default function MapScreen() {
       <View style={[styles.fabContainer, { bottom: insets.bottom + spacing.xl }]}>
         <TouchableOpacity
           style={[styles.fabSecondary, isDark && { backgroundColor: theme.surface }]}
+          onPress={handleLocateUser}
           testID="locate-button"
           accessibilityLabel="Ma position"
         >
@@ -455,7 +470,7 @@ export default function MapScreen() {
           backdropComponent={renderBackdrop}
           backgroundStyle={styles.bottomSheetBackground}
           handleIndicatorStyle={styles.bottomSheetHandle}
-          onChange={(index) => {
+          onChange={(index: number) => {
             if (index === -1) {
               cancelAddingPOI();
               setPoiName('');
@@ -572,7 +587,7 @@ export default function MapScreen() {
           backdropComponent={renderBackdrop}
           backgroundStyle={styles.bottomSheetBackground}
           handleIndicatorStyle={styles.bottomSheetHandle}
-          onChange={(index) => {
+          onChange={(index: number) => {
             if (index === -1) {
               setSelectedPoi(null);
             }
@@ -859,7 +874,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.md,
       android: { elevation: 4 },
       web: { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' },
@@ -873,7 +888,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.md,
       android: { elevation: 4 },
       web: { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' },
@@ -903,7 +918,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     marginRight: spacing.sm,
     gap: spacing.xs,
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.sm,
       android: { elevation: 2 },
       web: { boxShadow: '0 1px 4px rgba(0,0,0,0.08)' },
@@ -930,7 +945,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing.lg,
     zIndex: 20,
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.lg,
       android: { elevation: 8 },
       web: { boxShadow: '0 4px 16px rgba(0,0,0,0.2)' },
@@ -975,7 +990,7 @@ const styles = StyleSheet.create({
     right: spacing.lg,
     gap: spacing.md,
     zIndex: 10,
-    ...Platform.select({
+    ...platformShadow({
       android: { elevation: 10 },
     }),
   },
@@ -986,7 +1001,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.lg,
       android: { elevation: 6 },
       web: { boxShadow: '0 4px 12px rgba(0,0,0,0.15)' },
@@ -999,7 +1014,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.lg,
       android: { elevation: 6 },
       web: { boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)' },
@@ -1018,7 +1033,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
     zIndex: 10,
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.md,
       android: { elevation: 4 },
       web: { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' },
@@ -1220,7 +1235,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     gap: spacing.sm,
     zIndex: 100,
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.md,
       android: { elevation: 4 },
       web: { boxShadow: '0 2px 8px rgba(0,0,0,0.15)' },
@@ -1257,7 +1272,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     gap: spacing.sm,
     zIndex: 100,
-    ...Platform.select({
+    ...platformShadow({
       ios: shadows.md,
       android: { elevation: 4 },
       web: { boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)' },

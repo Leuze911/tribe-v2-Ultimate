@@ -10,6 +10,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -100,6 +102,7 @@ class NotificationService {
         sound: 'default',
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
         hour: 10,
         minute: 0,
         repeats: true,
@@ -113,13 +116,13 @@ class NotificationService {
 
   addNotificationReceivedListener(
     callback: (notification: Notifications.Notification) => void,
-  ): Notifications.Subscription {
+  ) {
     return Notifications.addNotificationReceivedListener(callback);
   }
 
   addNotificationResponseListener(
     callback: (response: Notifications.NotificationResponse) => void,
-  ): Notifications.Subscription {
+  ) {
     return Notifications.addNotificationResponseReceivedListener(callback);
   }
 
