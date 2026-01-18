@@ -15,15 +15,18 @@ import { poisService } from '../../src/services/pois';
 import { mediaService, PhotoResult } from '../../src/services/media';
 import type { POI, Location as LocationType } from '../../src/types';
 
-// Check if running in Expo Go (BottomSheet has issues with reanimated in Expo Go)
+// Check if running in Expo Go or Web (BottomSheet has issues with reanimated)
+// NOTE: Disabled BottomSheet due to incompatibility with reanimated v4 (useWorkletCallback removed)
 const isExpoGo = Constants.appOwnership === 'expo';
+const isWeb = Platform.OS === 'web';
+const useNativeBottomSheet = false; // Disabled - using Modal fallback instead
 
-// Conditionally import BottomSheet only if not in Expo Go
+// Conditionally import BottomSheet only if on native (not Expo Go, not Web)
 let BottomSheet: any = null;
 let BottomSheetScrollView: any = null;
 let BottomSheetBackdrop: any = null;
 
-if (!isExpoGo) {
+if (useNativeBottomSheet) {
   try {
     const bottomSheetModule = require('@gorhom/bottom-sheet');
     BottomSheet = bottomSheetModule.default;
@@ -68,17 +71,44 @@ export default function MapScreen() {
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
   const [locationPermission, setLocationPermission] = useState<boolean>(false);
 
+  // Modal states for fallback when BottomSheet is disabled
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
   // Request location permission and get user location
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        setLocationPermission(true);
-        const location = await Location.getCurrentPositionAsync({});
-        setUserLocation({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        });
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          setLocationPermission(true);
+          try {
+            const location = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            setUserLocation({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            });
+          } catch (locError) {
+            // Location unavailable - use default or last known location
+            console.log('Location unavailable, using default');
+            // Try last known location as fallback
+            try {
+              const lastLocation = await Location.getLastKnownPositionAsync();
+              if (lastLocation) {
+                setUserLocation({
+                  latitude: lastLocation.coords.latitude,
+                  longitude: lastLocation.coords.longitude,
+                });
+              }
+            } catch {
+              // Silently fail - map will work without user location
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Location permission error:', error);
       }
     })();
   }, []);
@@ -127,7 +157,11 @@ export default function MapScreen() {
   const handleConfirmLocation = () => {
     const location = confirmPOILocation();
     if (location) {
-      poiFormSheetRef.current?.expand();
+      if (useNativeBottomSheet && poiFormSheetRef.current) {
+        poiFormSheetRef.current.expand();
+      } else {
+        setShowFormModal(true);
+      }
     }
   };
 
@@ -184,7 +218,10 @@ export default function MapScreen() {
       }
 
       setIsLoading(false);
-      poiFormSheetRef.current?.close();
+      if (useNativeBottomSheet && poiFormSheetRef.current) {
+        poiFormSheetRef.current.close();
+      }
+      setShowFormModal(false);
       setPoiName('');
       setPoiDescription('');
       setPoiPhotos([]);
@@ -198,7 +235,10 @@ export default function MapScreen() {
   };
 
   const handleCloseForm = () => {
-    poiFormSheetRef.current?.close();
+    if (useNativeBottomSheet && poiFormSheetRef.current) {
+      poiFormSheetRef.current.close();
+    }
+    setShowFormModal(false);
     cancelAddingPOI();
     setPoiName('');
     setPoiDescription('');
@@ -259,7 +299,11 @@ export default function MapScreen() {
         pois={pois}
         onPOIPress={(poi) => {
           setSelectedPoi(poi);
-          poiDetailSheetRef.current?.expand();
+          if (useNativeBottomSheet && poiDetailSheetRef.current) {
+            poiDetailSheetRef.current.expand();
+          } else {
+            setShowDetailModal(true);
+          }
         }}
         onMapPress={(location) => {
           if (isAddingPOI) {
@@ -397,12 +441,12 @@ export default function MapScreen() {
         </View>
         <View>
           <Text style={[styles.userBadgeName, isDark && { color: theme.text }]}>Niveau {user?.level || 1}</Text>
-          <Text style={[styles.userBadgeXp, isDark && { color: theme.textSecondary }]}>{user?.xp || 0} XP</Text>
+          <Text style={[styles.userBadgeXp, isDark && { color: theme.textSecondary }]}>{user?.points || 0} XP</Text>
         </View>
       </View>
 
       {/* POI Creation - BottomSheet or Modal based on environment */}
-      {!isExpoGo && BottomSheet ? (
+      {useNativeBottomSheet && BottomSheet ? (
         <BottomSheet
           ref={poiFormSheetRef}
           index={-1}
@@ -519,7 +563,7 @@ export default function MapScreen() {
       ) : null}
 
       {/* POI Detail - BottomSheet or Modal based on environment */}
-      {!isExpoGo && BottomSheet ? (
+      {useNativeBottomSheet && BottomSheet ? (
         <BottomSheet
           ref={poiDetailSheetRef}
           index={-1}
@@ -582,6 +626,207 @@ export default function MapScreen() {
           </BottomSheetScrollView>
         </BottomSheet>
       ) : null}
+
+      {/* Modal Fallback for POI Creation Form (when BottomSheet is disabled) */}
+      {!useNativeBottomSheet && (
+        <Modal
+          visible={showFormModal}
+          animationType="slide"
+          transparent
+          onRequestClose={handleCloseForm}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+          >
+            <View style={[styles.modalContent, isDark && { backgroundColor: theme.surface }]}>
+              <View style={styles.modalHandle} />
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.sheetHeader}>
+                  <Text style={[styles.sheetTitle, isDark && { color: theme.text }]}>Nouveau POI</Text>
+                  <TouchableOpacity onPress={handleCloseForm} style={styles.closeButton} testID="close-poi-form">
+                    <Ionicons name="close" size={24} color={isDark ? theme.textSecondary : colors.gray[600]} />
+                  </TouchableOpacity>
+                </View>
+
+                {newPOILocation && (
+                  <View style={[styles.coordinatesContainer, isDark && { backgroundColor: theme.background }]}>
+                    <Ionicons name="location" size={18} color={colors.primary[500]} />
+                    <Text style={[styles.coordinatesText, isDark && { color: colors.primary[400] }]}>
+                      {newPOILocation.latitude.toFixed(6)}, {newPOILocation.longitude.toFixed(6)}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.formSection}>
+                  <Text style={[styles.inputLabel, isDark && { color: theme.textSecondary }]}>Nom du lieu *</Text>
+                  <TextInput
+                    style={[styles.textInput, isDark && { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+                    placeholder="Ex: Cafe de la Paix"
+                    placeholderTextColor={isDark ? theme.textMuted : colors.gray[400]}
+                    value={poiName}
+                    onChangeText={setPoiName}
+                    testID="poi-name-input"
+                  />
+
+                  <Text style={[styles.inputLabel, isDark && { color: theme.textSecondary }]}>Description</Text>
+                  <TextInput
+                    style={[styles.textInput, styles.textArea, isDark && { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+                    placeholder="Decrivez ce lieu..."
+                    placeholderTextColor={isDark ? theme.textMuted : colors.gray[400]}
+                    value={poiDescription}
+                    onChangeText={setPoiDescription}
+                    multiline
+                    numberOfLines={3}
+                    testID="poi-description-input"
+                  />
+
+                  <Text style={[styles.inputLabel, isDark && { color: theme.textSecondary }]}>Categorie</Text>
+                  <View style={styles.categorySelect}>
+                    {categories.slice(1).map((cat) => (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[
+                          styles.categoryOption,
+                          isDark && { backgroundColor: theme.background },
+                          poiCategory === cat.id && styles.categoryOptionActive
+                        ]}
+                        onPress={() => setPoiCategory(cat.id)}
+                        testID={`category-${cat.id}`}
+                      >
+                        <Ionicons
+                          name={cat.icon}
+                          size={20}
+                          color={poiCategory === cat.id ? colors.white : isDark ? theme.textSecondary : colors.gray[600]}
+                        />
+                        <Text style={[
+                          styles.categoryOptionText,
+                          isDark && { color: theme.textSecondary },
+                          poiCategory === cat.id && styles.categoryOptionTextActive
+                        ]}>
+                          {cat.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <Text style={[styles.inputLabel, isDark && { color: theme.textSecondary }]}>Photos (optionnel)</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
+                    {poiPhotos.map((uri, index) => (
+                      <View key={index} style={styles.photoPreview}>
+                        <Image source={{ uri }} style={styles.photoImage} />
+                        <TouchableOpacity
+                          style={styles.photoRemoveButton}
+                          onPress={() => handleRemovePhoto(index)}
+                        >
+                          <Ionicons name="close-circle" size={24} color={colors.red[500]} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    <TouchableOpacity
+                      style={[styles.addPhotoButton, isDark && { borderColor: theme.border, backgroundColor: theme.background }]}
+                      onPress={handleAddPhoto}
+                      testID="add-photo-button"
+                    >
+                      <Ionicons name="camera" size={32} color={isDark ? theme.textMuted : colors.gray[400]} />
+                      <Text style={[styles.addPhotoText, isDark && { color: theme.textMuted }]}>Ajouter</Text>
+                    </TouchableOpacity>
+                  </ScrollView>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSavePOI}
+                  disabled={isLoading}
+                  testID="save-poi-button"
+                >
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={20} color={colors.white} />
+                      <Text style={styles.saveButtonText}>Creer le POI</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      )}
+
+      {/* Modal Fallback for POI Detail (when BottomSheet is disabled) */}
+      {!useNativeBottomSheet && (
+        <Modal
+          visible={showDetailModal && selectedPoi !== null}
+          animationType="slide"
+          transparent
+          onRequestClose={() => {
+            setShowDetailModal(false);
+            setSelectedPoi(null);
+          }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, styles.modalContentSmall, isDark && { backgroundColor: theme.surface }]}>
+              <View style={styles.modalHandle} />
+              {selectedPoi && (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <View style={styles.sheetHeader}>
+                    <Text style={[styles.sheetTitle, isDark && { color: theme.text }]}>{selectedPoi.name}</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setShowDetailModal(false);
+                        setSelectedPoi(null);
+                      }}
+                      style={styles.closeButton}
+                      testID="close-poi-detail"
+                    >
+                      <Ionicons name="close" size={24} color={isDark ? theme.textSecondary : colors.gray[600]} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.poiDetailContent}>
+                    <View style={[styles.poiCategoryBadge, isDark && { backgroundColor: colors.primary[900] }]}>
+                      <Text style={[styles.poiCategoryText, isDark && { color: colors.primary[300] }]}>
+                        {selectedPoi.category?.name || 'POI'}
+                      </Text>
+                    </View>
+
+                    {selectedPoi.description && (
+                      <Text style={[styles.poiDescription, isDark && { color: theme.textSecondary }]}>
+                        {selectedPoi.description}
+                      </Text>
+                    )}
+
+                    {selectedPoi.latitude != null && selectedPoi.longitude != null && (
+                      <View style={styles.poiInfoRow}>
+                        <Ionicons name="location-outline" size={18} color={isDark ? theme.textMuted : colors.gray[500]} />
+                        <Text style={[styles.poiInfoText, isDark && { color: theme.textSecondary }]}>
+                          {Number(selectedPoi.latitude).toFixed(4)}, {Number(selectedPoi.longitude).toFixed(4)}
+                        </Text>
+                      </View>
+                    )}
+
+                    {selectedPoi.author && (
+                      <View style={styles.poiInfoRow}>
+                        <Ionicons name="person-outline" size={18} color={isDark ? theme.textMuted : colors.gray[500]} />
+                        <Text style={[styles.poiInfoText, isDark && { color: theme.textSecondary }]}>
+                          Ajouté par {selectedPoi.author.username}
+                        </Text>
+                      </View>
+                    )}
+
+                    <TouchableOpacity style={styles.navigateButton}>
+                      <Ionicons name="navigate" size={20} color={colors.white} />
+                      <Text style={styles.navigateButtonText}>Itinéraire</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -730,6 +975,9 @@ const styles = StyleSheet.create({
     right: spacing.lg,
     gap: spacing.md,
     zIndex: 10,
+    ...Platform.select({
+      android: { elevation: 10 },
+    }),
   },
   fabSecondary: {
     width: 56,
@@ -1059,5 +1307,32 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     fontSize: fontSize.xs,
     marginTop: spacing.xs,
+  },
+
+  // Modal styles (fallback when BottomSheet is disabled)
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: borderRadius['2xl'],
+    borderTopRightRadius: borderRadius['2xl'],
+    maxHeight: SCREEN_HEIGHT * 0.85,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing['3xl'],
+  },
+  modalContentSmall: {
+    maxHeight: SCREEN_HEIGHT * 0.5,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: colors.gray[300],
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
   },
 });

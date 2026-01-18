@@ -1,7 +1,7 @@
 # TRIBE v2 - E2E Test: Login Flow
 # Tests basic email/password login functionality
 
-appId: host.exp.Exponent
+appId: com.tribe.app
 ---
 
 # Test: Successful login with valid credentials
@@ -21,13 +21,16 @@ appId: host.exp.Exponent
     id: "password-input"
 - inputText: "password123"
 
+# Hide keyboard before tapping login
+- hideKeyboard
+
 # Submit login
 - tapOn:
     id: "login-button"
 
 # Wait for navigation to map screen
-- assertVisible:
-    text: "Rechercher un lieu..."
+- extendedWaitUntil:
+    visible: "Rechercher un lieu..."
     timeout: 10000
 
 # Verify we're on the map screen (FAB button visible)
@@ -53,8 +56,8 @@ appId: host.exp.Exponent
     id: "login-button"
 
 # Should show error alert
-- assertVisible:
-    text: "Erreur"
+- extendedWaitUntil:
+    visible: "Erreur"
     timeout: 5000
 
 ---
@@ -69,6 +72,6 @@ appId: host.exp.Exponent
     id: "register-link"
 
 # Should be on register screen
-- assertVisible:
-    text: "Créer un compte"
+- extendedWaitUntil:
+    visible: "Créer un compte"
     timeout: 3000
