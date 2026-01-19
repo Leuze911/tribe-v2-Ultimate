@@ -6,9 +6,21 @@
 
 const { MongoClient } = require('mongodb');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://laminedeme:dn44y6icd9ZH8tFP@cluster0.lfr7e90.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+// Configuration (REQUIRED: set MONGO_URI environment variable)
+const MONGO_URI = process.env.MONGO_URI;
+
+// Validate required environment variables
+function validateEnv() {
+  if (!MONGO_URI) {
+    console.error('❌ Missing required environment variable: MONGO_URI');
+    console.error('\nPlease set MONGO_URI or create a .env file.');
+    console.error('See .env.migration.example for reference.');
+    process.exit(1);
+  }
+}
 
 async function explore() {
+  validateEnv();
   console.log('=== Exploration MongoDB Atlas ===\n');
 
   const client = new MongoClient(MONGO_URI);

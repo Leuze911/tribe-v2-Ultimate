@@ -7,15 +7,27 @@
 
 const { Client } = require('pg');
 
+// Configuration PostgreSQL (REQUIRED: set PG_PASSWORD environment variable)
 const PG_CONFIG = {
   host: process.env.PG_HOST || 'localhost',
   port: parseInt(process.env.PG_PORT || '5433'),
   user: process.env.PG_USER || 'postgres',
-  password: process.env.PG_PASSWORD || 'tribe_super_secret_2024',
+  password: process.env.PG_PASSWORD,
   database: process.env.PG_DATABASE || 'tribe'
 };
 
+// Validate required environment variables
+function validateEnv() {
+  if (!PG_CONFIG.password) {
+    console.error('❌ Missing required environment variable: PG_PASSWORD');
+    console.error('\nPlease set PG_PASSWORD or create a .env file.');
+    console.error('See .env.migration.example for reference.');
+    process.exit(1);
+  }
+}
+
 async function verify() {
+  validateEnv();
   console.log('=== Vérification Post-Migration TRIBE v2 ===\n');
 
   const client = new Client(PG_CONFIG);

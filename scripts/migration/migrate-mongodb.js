@@ -13,19 +13,34 @@ const { MongoClient } = require('mongodb');
 const { Client } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 
-// Configuration MongoDB Atlas
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://laminedeme:dn44y6icd9ZH8tFP@cluster0.lfr7e90.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
-const MONGO_DB = 'Cluster0';
-const MONGO_COLLECTION = 'locationEntity';
+// Configuration MongoDB Atlas (REQUIRED: set MONGO_URI environment variable)
+const MONGO_URI = process.env.MONGO_URI;
+const MONGO_DB = process.env.MONGO_DB || 'Cluster0';
+const MONGO_COLLECTION = process.env.MONGO_COLLECTION || 'locationEntity';
 
-// Configuration PostgreSQL TRIBE v2
+// Configuration PostgreSQL TRIBE v2 (REQUIRED: set PG_PASSWORD environment variable)
 const PG_CONFIG = {
   host: process.env.PG_HOST || 'localhost',
   port: parseInt(process.env.PG_PORT || '5433'),
   user: process.env.PG_USER || 'postgres',
-  password: process.env.PG_PASSWORD || 'tribe_super_secret_2024',
+  password: process.env.PG_PASSWORD,
   database: process.env.PG_DATABASE || 'tribe'
 };
+
+// Validate required environment variables
+function validateEnv() {
+  const missing = [];
+  if (!MONGO_URI) missing.push('MONGO_URI');
+  if (!PG_CONFIG.password) missing.push('PG_PASSWORD');
+
+  if (missing.length > 0) {
+    console.error('❌ Missing required environment variables:');
+    missing.forEach(v => console.error(`   - ${v}`));
+    console.error('\nPlease set these variables or create a .env file.');
+    console.error('See .env.migration.example for reference.');
+    process.exit(1);
+  }
+}
 
 // Mapping des types MongoDB -> PostgreSQL enum location_category
 const CATEGORY_MAPPING = {
@@ -171,6 +186,9 @@ function mapStatus(status) {
 }
 
 async function migrate() {
+  // Validate environment variables before starting
+  validateEnv();
+
   console.log('╔══════════════════════════════════════════════════════════════╗');
   console.log('║  Migration MongoDB Atlas -> PostgreSQL TRIBE v2              ║');
   console.log('║  Source: Cluster0.locationEntity (1236 POIs)                 ║');
