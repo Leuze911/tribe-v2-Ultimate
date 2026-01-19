@@ -1,0 +1,7 @@
+# Ignore environment files with secrets
+.env
+.env.local
+.env.migration
+
+# Ignore node_modules
+node_modules/

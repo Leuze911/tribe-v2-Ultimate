@@ -9,25 +9,42 @@
 const mysql = require('mysql2/promise');
 const { Client } = require('pg');
 
-// Configuration MySQL Azure (tribe-back-office)
+// Configuration MySQL Azure (REQUIRED: set MYSQL_* environment variables)
 const MYSQL_CONFIG = {
-  host: 'd-tribe-mql.mysql.database.azure.com',
-  port: 3306,
-  user: 'admin_nysom',
-  password: 'tribe2023!!',
-  database: 'tribe-back-office',
+  host: process.env.MYSQL_HOST,
+  port: parseInt(process.env.MYSQL_PORT || '3306'),
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD,
+  database: process.env.MYSQL_DATABASE || 'tribe-back-office',
   ssl: { rejectUnauthorized: false },
   connectTimeout: 30000
 };
 
-// Configuration PostgreSQL TRIBE v2
+// Configuration PostgreSQL TRIBE v2 (REQUIRED: set PG_PASSWORD environment variable)
 const PG_CONFIG = {
   host: process.env.PG_HOST || 'localhost',
   port: parseInt(process.env.PG_PORT || '5433'),
   user: process.env.PG_USER || 'postgres',
-  password: process.env.PG_PASSWORD || 'tribe_super_secret_2024',
+  password: process.env.PG_PASSWORD,
   database: process.env.PG_DATABASE || 'tribe'
 };
+
+// Validate required environment variables
+function validateEnv() {
+  const missing = [];
+  if (!MYSQL_CONFIG.host) missing.push('MYSQL_HOST');
+  if (!MYSQL_CONFIG.user) missing.push('MYSQL_USER');
+  if (!MYSQL_CONFIG.password) missing.push('MYSQL_PASSWORD');
+  if (!PG_CONFIG.password) missing.push('PG_PASSWORD');
+
+  if (missing.length > 0) {
+    console.error('❌ Missing required environment variables:');
+    missing.forEach(v => console.error(`   - ${v}`));
+    console.error('\nPlease set these variables or create a .env file.');
+    console.error('See .env.migration.example for reference.');
+    process.exit(1);
+  }
+}
 
 // Fonction pour créer un slug à partir d'un nom
 function slugify(text) {
@@ -61,6 +78,9 @@ const CATEGORY_ICONS = {
 };
 
 async function migrate() {
+  // Validate environment variables before starting
+  validateEnv();
+
   console.log('╔══════════════════════════════════════════════════════════════╗');
   console.log('║  Migration Catégories TRIBE v1 -> v2                         ║');
   console.log('║  Source: MySQL tribe-back-office.token_configuration         ║');
